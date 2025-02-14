@@ -35,6 +35,7 @@ typedef struct Heroi{
     int velocidade;
     Bala bala;
     int vida;
+    
 }Heroi;
 
 typedef struct Bordas{
@@ -56,12 +57,16 @@ typedef struct Jogo{
     int larguraJanela;
     int tempoAnimacao;
     int status;
+    char player[20];
+    int placar[5];
+    bool playerEmEdicao;
 }Jogo;
 
 void IniciaJogo(Jogo *j);
 void IniciaNaves(Jogo *j);
 void AtualizaJogo(Jogo *j);
 void DesenhaJogo(Jogo *j);
+void DesenhaPlacar(Jogo *j);
 void DesenhaJogoPos(Jogo *j);
 void AtualizaFrameDesenho(Jogo *j);
 void DesenhaBalasHeroi(Jogo *j);
@@ -159,8 +164,51 @@ void IniciaNaves(Jogo *j){
 
 void DrawHome(Jogo *j){ //Draw the game's home page
     BeginDrawing();
-    ClearBackground(WHITE);
+    ClearBackground(BLACK);
+    DrawText("Placar dos 5 últimos jogos:", 10, 150, 20, WHITE);
+    DesenhaPlacar(j);
+    DrawText("Space Invaders", 300, 100, 40, WHITE);
+    char buffer[50] = ""; // Buffer para armazenar o player
+    // Solicitar player
+        if (j->playerEmEdicao) {
+        DrawText("Digite seu player:", 10, 250, 20, WHITE);
+        DrawText(buffer, 10, 300, 20, WHITE);
+        if (IsKeyPressed(KEY_ENTER)) {
+            strncpy(j->player, buffer, sizeof(j->player) - 1);
+            j->playerEmEdicao = 0; // Termina a edição do player
+            
+        }
+        if (IsKeyPressed(KEY_BACKSPACE) && strlen(buffer) > 0) {
+            buffer[strlen(buffer) - 1] = '\0'; // Remove o último caractere
+        } else {
+            for (int i = 0; i < 26; i++) {
+                if (IsKeyPressed(KEY_A + i)) {
+                    char ch = 'A' + i;
+                    int len = strlen(buffer);
+                    if (len < 49) {
+                        buffer[len] = ch;
+                        buffer[len + 1] = '\0';
+                    }
+                }
+            }
+        }
+    } else {
+        DrawText("aperte ENTER para começar", 250, 350, 20, WHITE);
+        if (IsKeyPressed(KEY_ENTER)) {
+            j->playerEmEdicao = true; // Começa a edição do player
+        }
+    }
+
+    DesenhaPlacar(j);
     EndDrawing();
+}
+
+void DesenhaPlacar(Jogo *j){
+    for (int i = 0; i < 5; i++) {
+    char pontos[20];
+    sprintf(pontos, "Jogo %d: %d", i + 1, j->placar[i]);
+    DrawText(pontos, 10, 50 + i * 30, 20, WHITE);
+    }
 }
 
 void AtualizaJogo(Jogo *j){
@@ -191,7 +239,6 @@ void DesenhaJogoPos(Jogo *j){
     DrawRectangleRec(button, hover ? GRAY : DARKGRAY);
     DrawText("Home", button.x + 40, button.y + 20, 20, WHITE);
     if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        printf("Botão clicado! Alterando status para 0.\n");
         j->status = 0;
         j->heroi.vida = 3;
     }else{
