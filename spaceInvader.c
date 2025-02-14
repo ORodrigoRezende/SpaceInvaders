@@ -31,6 +31,12 @@ typedef struct Nave{
     int status;
 }Nave;
 
+typedef struct Barreiras {
+    Rectangle pos;
+    Color color;
+    int vida;
+}Barreiras;
+
 typedef struct{
     Nave naves[NUM_NAVES_LINHA];
     int direcao;
@@ -53,6 +59,7 @@ typedef struct Bordas{
 typedef struct Assets{
     Texture2D naveHeroi;
     Texture2D naveVerde;
+    Texture2D barreira;
     Sound tiro;
 }Assets;
 
@@ -61,6 +68,7 @@ typedef struct Jogo{
     Heroi heroi;
     Bordas bordas[4];
     Assets assets;
+    Barreiras barreiras[5]; 
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
@@ -75,6 +83,7 @@ void IniciaNaves(Jogo *j);
 void AtualizaJogo(Jogo *j);
 void DesenhaJogo(Jogo *j);
 void DesenhaPlacar(Jogo *j);
+void DesenhaBarreiras(Jogo *j);
 void DesenhaJogoPos(Jogo *j);
 void AtualizaFrameDesenho(Jogo *j);
 void DesenhaBalasHeroi(Jogo *j);
@@ -160,6 +169,12 @@ void IniciaJogo(Jogo *j){
         j->linha[i].status = 1;
     }
 
+    for (int i = 0; i < 5; i++) {
+        j->barreiras[i].pos = (Rectangle){LARGURA_JANELA / 100 + i * 150, ALTURA_JANELA / 2 - 50, 25, 25};
+        j->barreiras[i].color = GRAY;
+        j->barreiras[i].vida = 2;
+    }
+
     //borda encima
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10};
     //borda embaixo
@@ -178,38 +193,32 @@ void IniciaNaves(Jogo *j){
 void DrawHome(Jogo *j){ //Draw the game's home page
     BeginDrawing();
     ClearBackground(BLACK);
-    DrawText("Placar dos 5 últimos jogos:", 10, 150, 20, WHITE);
+    DrawText("Placar dos 5 últimos jogos:", 250, 375, 20, WHITE);
     DesenhaPlacar(j);
-    DrawText("Space Invaders", 300, 100, 40, WHITE);
-    char buffer[50] = ""; // Buffer para armazenar o player
-    // Solicitar player
-        if (j->playerEmEdicao) {
-        DrawText("Digite seu player:", 10, 250, 20, WHITE);
-        DrawText(buffer, 10, 300, 20, WHITE);
-        if (IsKeyPressed(KEY_ENTER)) {
-            strncpy(j->player, buffer, sizeof(j->player) - 1);
-            j->playerEmEdicao = 0; // Termina a edição do player
-            
+    DrawText("Space Invaders", 250, 100, 40, WHITE);
+    DrawText("Digite seu nome:", 250, 200, 20, WHITE);
+    DrawText(j->player, 250, 250, 20, WHITE); // Exibe o nome digitado
+
+    // Captura entrada de texto
+    int key = GetCharPressed();
+    while (key > 0) {
+        int len = strlen(j->player);
+        if (len < sizeof(j->player) - 1 && key >= 32 && key <= 125) { 
+            j->player[len] = (char)key;
+            j->player[len + 1] = '\0';
         }
-        if (IsKeyPressed(KEY_BACKSPACE) && strlen(buffer) > 0) {
-            buffer[strlen(buffer) - 1] = '\0'; // Remove o último caractere
-        } else {
-            for (int i = 0; i < 26; i++) {
-                if (IsKeyPressed(KEY_A + i)) {
-                    char ch = 'A' + i;
-                    int len = strlen(buffer);
-                    if (len < 49) {
-                        buffer[len] = ch;
-                        buffer[len + 1] = '\0';
-                    }
-                }
-            }
-        }
-    } else {
-        DrawText("aperte ENTER para começar", 250, 350, 20, WHITE);
-        if (IsKeyPressed(KEY_ENTER)) {
-            j->playerEmEdicao = true; // Começa a edição do player
-        }
+        key = GetCharPressed(); // Pega caracteres subsequentes
+    }
+
+    // Remover último caractere com Backspace
+    if (IsKeyPressed(KEY_BACKSPACE) && strlen(j->player) > 0) {
+        j->player[strlen(j->player) - 1] = '\0';
+    }
+
+    // Pressionar Enter para confirmar o nome
+    if (IsKeyPressed(KEY_ENTER) && strlen(j->player) > 0) {
+        j->playerEmEdicao = false;
+        j->status = 1; // Inicia o jogo
     }
 
     DesenhaPlacar(j);
@@ -220,7 +229,15 @@ void DesenhaPlacar(Jogo *j){
     for (int i = 0; i < 5; i++) {
     char pontos[20];
     sprintf(pontos, "Jogo %d: %d", i + 1, j->placar[i]);
-    DrawText(pontos, 10, 50 + i * 30, 20, WHITE);
+    DrawText(pontos, 250, 425 + i * 30, 20, WHITE);
+    }
+}
+
+void DesenhaBarreiras(Jogo *j) {
+    for (int i = 0; i < 5; i++) {
+        if (j->barreiras[i].vida > 0) {
+            DrawTexture(j->assets.barreira, 175 +(i*150), 250 , WHITE);
+        }
     }
 }
 
@@ -238,6 +255,7 @@ void DesenhaJogo(Jogo *j){
     DesenhaNaves(j);
     DesenhaHeroi(j);
     DesenhaBordas(j);
+    DesenhaBarreiras(j);
     EndDrawing();
 }
 
@@ -295,11 +313,13 @@ void AtualizaHeroiPos(Jogo *j){
 void CarregaImagens(Jogo *j){
     j->assets.naveHeroi = LoadTexture("assets/naveHeroi.png");
     j->assets.naveVerde = LoadTexture("assets/GreenAnimation.png");
+    j->assets.barreira = LoadTexture("assets/barreira.png");
 }
 
 void DescarregaImagens(Jogo *j){
     UnloadTexture(j->assets.naveHeroi);
     UnloadTexture(j->assets.naveVerde);
+    UnloadTexture(j->assets.barreira);
 }
 
 void DesenhaNaves(Jogo *j){
@@ -422,16 +442,35 @@ int ColisaoBalas(Jogo *j){
     // Colisao bala com heroi
     for (int i = 0; i < NUM_LINHA; i++){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
-            if(CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos) && (j->linha[i].naves[k].bala.ativa==1)){
-                j->heroi.vida--; //Diminuição da vida Heroi
-                return 2;
+            if(j->linha[i].naves[k].status){
+                if(CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos) && (j->linha[i].naves[k].bala.ativa==1)){
+                    j->heroi.vida--; //Diminuição da vida Heroi
+                    return 2;
+                }
+                // Colisao bala com borda de baixo
+                if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->bordas[1].pos)){
+                    return 1;
+                }
+            }else{
+                j->linha[i].naves[k].bala.ativa=0;
             }
-            // Colisao bala com borda de baixo
-            if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->bordas[1].pos)){
-                return 1;
+            
+            for (int i = 0; i < 5; i++) {
+                if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[i].pos)){
+                    j->barreiras[i].vida --;
+                    j->linha[i].naves[k].bala.ativa = 0;
+                    if (j->barreiras[i].vida < 0 ) {
+                        j->barreiras[i].pos.width = 0;  
+                        j->barreiras[i].pos.height = 0;
+                    }
+                    return 1;
+                } 
             }
+
         }
     }
+     
+
     return 0;
 }
 int ColisaoBalasHeroi(Jogo *j){
@@ -447,6 +486,18 @@ int ColisaoBalasHeroi(Jogo *j){
             }
         }
     }
+    for (int i = 0; i < 5; i++) {
+        if (CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
+            j->barreiras[i].vida --;
+            j->heroi.bala.ativa = 0;
+            if (j->barreiras[i].vida < 0 ) {
+                j->barreiras[i].pos.width = 0;  
+                j->barreiras[i].pos.height = 0;
+            }
+            return 1;
+        } 
+    }
+
     return 0;
 }
 
