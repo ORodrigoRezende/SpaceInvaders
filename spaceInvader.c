@@ -6,7 +6,7 @@
 #include <math.h>
 
 #define LARGURA_JANELA 800
-#define ALTURA_JANELA 800
+#define ALTURA_JANELA 600
 #define STD_SIZE_X 32
 #define STD_SIZE_Y 32
 #define LARGURA_BALA 10
@@ -34,6 +34,7 @@ typedef struct Heroi{
     Color color;
     int velocidade;
     Bala bala;
+    int vida;
 }Heroi;
 
 typedef struct Bordas{
@@ -54,6 +55,7 @@ typedef struct Jogo{
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
+    int status;
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -76,7 +78,9 @@ void AtiraBalas(Jogo *j);
 void AtiraBalasHeroi(Jogo *j);
 void CarregaImagens(Jogo *j);
 void DescarregaImagens(Jogo *j);
-int Vencedor(Jogo *j);
+void Vencedor(Jogo *j);
+void DrawHome(Jogo *j);
+
 int main(){
     InitAudioDevice();
 
@@ -92,16 +96,21 @@ int main(){
     Music musicaJogo = LoadMusicStream("assets/musica.mp3");
     PlayMusicStream(musicaJogo);
 
-    while(!WindowShouldClose() && Vencedor(&jogo)){ 
-      
-        UpdateMusicStream(musicaJogo);
-        AtualizaFrameDesenho(&jogo);
+    while(!WindowShouldClose()){ //status 0 Home ;status 1 Jogo ; status 2 Pós jogo
+        if(jogo.status==1){
+            UpdateMusicStream(musicaJogo);
+            AtualizaFrameDesenho(&jogo);
+        }else if(jogo.status==2){
+            DesenhaJogoPos(&jogo);
+            
+        }else{
+            if (IsKeyPressed(KEY_ENTER)){
+                jogo.status = 1;
+            }
+            DrawHome(&jogo);
+        }
     }
-    Vencedor(&jogo);
-    while (!WindowShouldClose() ){
-    DesenhaJogoPos(&jogo);
-    Vencedor(&jogo);
-    }
+    
     UnloadMusicStream(musicaJogo);
     DescarregaImagens(&jogo);
     CloseWindow(); 
@@ -111,6 +120,7 @@ int main(){
 
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
+    j->status = 0;
 
     j->heroi.pos = (Rectangle) {LARGURA_JANELA/2 - STD_SIZE_X/2, ALTURA_JANELA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     j->heroi.color = BLUE;
@@ -119,6 +129,7 @@ void IniciaJogo(Jogo *j){
     j->heroi.bala.tempo = GetTime();
     j->heroi.bala.velocidade = 5;
     j->heroi.bala.tiro = LoadSound("assets/shoot.wav");
+    j->heroi.vida = 3;
 
 
     j->nave.pos = (Rectangle) {0, 15, STD_SIZE_X, STD_SIZE_Y};
@@ -146,6 +157,12 @@ void IniciaNaves(Jogo *j){
 
 }
 
+void DrawHome(Jogo *j){ //Draw the game's home page
+    BeginDrawing();
+    ClearBackground(WHITE);
+    EndDrawing();
+}
+
 void AtualizaJogo(Jogo *j){
     AtualizaNavePos(j);
     AtualizaHeroiPos(j);
@@ -167,6 +184,20 @@ void DesenhaJogoPos(Jogo *j){
     BeginDrawing();
     ClearBackground(BLACK);
     DesenhaBordas(j);
+    //Home button
+    Rectangle button = {300, 250, 200, 60};
+    Vector2 mouse = GetMousePosition();
+    bool hover = CheckCollisionPointRec(mouse, button);
+    DrawRectangleRec(button, hover ? GRAY : DARKGRAY);
+    DrawText("Home", button.x + 40, button.y + 20, 20, WHITE);
+    if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        printf("Botão clicado! Alterando status para 0.\n");
+        j->status = 0;
+        j->heroi.vida = 3;
+    }else{
+        Vencedor(j);
+    }
+
     EndDrawing();
 }
 
@@ -275,7 +306,6 @@ void AtiraBalasHeroi(Jogo *j){
         j->heroi.bala.pos = (Rectangle){j->heroi.pos.x+j->heroi.pos.width/2 - LARGURA_BALA/2, j->heroi.pos.y,
         LARGURA_BALA, ALTURA_BALA};
         j->heroi.bala.ativa = 1;
-        //j->heroi.bala.tempo = GetTime();
         PlaySound(j->heroi.bala.tiro);
     }
     else if(ColisaoBalasHeroi(j)){
@@ -298,7 +328,8 @@ void ColisaoBordas(Jogo *j){
 int ColisaoBalas(Jogo *j){
     // Colisao bala com heroi
     if(CheckCollisionRecs(j->heroi.pos, j->nave.bala.pos) && (j->nave.bala.ativa==1)){
-        return 2;
+        j->heroi.vida--; //Diminuição da vida Heroi
+        return 1;
     }
     // Colisao bala com borda de baixo
     if(CheckCollisionRecs(j->nave.bala.pos, j->bordas[1].pos)){
@@ -309,7 +340,7 @@ int ColisaoBalas(Jogo *j){
 int ColisaoBalasHeroi(Jogo *j){
     // Colisao bala com nave
     if(CheckCollisionRecs(j->nave.pos, j->heroi.bala.pos) && (j->heroi.bala.ativa==1)){
-        return 2;
+        return 1;
     }
     // Colisao bala com borda de cima
     if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
@@ -317,18 +348,17 @@ int ColisaoBalasHeroi(Jogo *j){
     }
     return 0;
 }
-int Vencedor(Jogo *j){
+void Vencedor(Jogo *j){
     int textWidth = MeasureText("VOCÊ PERDEU!", 50);
     int textWidth2 = MeasureText("VOCÊ VENCEU!", 50);
-    if(ColisaoBalas(j) == 2){
+    if(j->heroi.vida == 0){
     ClearBackground(BLACK);
     DrawText("VOCÊ PERDEU!", (GetScreenWidth() - textWidth) / 2, GetScreenHeight() / 2 - 100, 50, RED);
-    return 0;
+    j->status = 2;
     }
     if(ColisaoBalasHeroi(j) == 2){
     ClearBackground(BLACK);
     DrawText("VOCÊ VENCEU!", (GetScreenWidth() - textWidth2)/ 2, GetScreenHeight() / 2 - 100, 50, GREEN);
-    return 0;
+    j->status = 2;
     }
-    return 1;
 }
