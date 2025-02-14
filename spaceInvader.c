@@ -376,7 +376,7 @@ int ColisaoBalas(Jogo *j){
     // Colisao bala com heroi
     if(CheckCollisionRecs(j->heroi.pos, j->nave.bala.pos) && (j->nave.bala.ativa==1)){
         j->heroi.vida--; //Diminuição da vida Heroi
-        return 1;
+        return 2;
     }
     // Colisao bala com borda de baixo
     if(CheckCollisionRecs(j->nave.bala.pos, j->bordas[1].pos)){
@@ -387,7 +387,7 @@ int ColisaoBalas(Jogo *j){
 int ColisaoBalasHeroi(Jogo *j){
     // Colisao bala com nave
     if(CheckCollisionRecs(j->nave.pos, j->heroi.bala.pos) && (j->heroi.bala.ativa==1)){
-        return 1;
+        return 2;
     }
     // Colisao bala com borda de cima
     if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
