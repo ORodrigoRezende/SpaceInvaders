@@ -11,6 +11,8 @@
 #define STD_SIZE_Y 32
 #define LARGURA_BALA 10
 #define ALTURA_BALA 15
+#define NUM_LINHA 3
+#define NUM_NAVES_LINHA 7
 
 typedef struct Bala{
     Rectangle pos;
@@ -26,8 +28,15 @@ typedef struct Nave{
     Color color;
     Bala bala;
     int velocidade;
-    int direcao;
+    int status;
 }Nave;
+
+typedef struct{
+    Nave naves[NUM_NAVES_LINHA];
+    int direcao;
+    double tempo;
+    int status;
+}LinhaNave;
 
 typedef struct Heroi{
     Rectangle pos;
@@ -35,12 +44,11 @@ typedef struct Heroi{
     int velocidade;
     Bala bala;
     int vida;
-    
 }Heroi;
 
 typedef struct Bordas{
     Rectangle pos;
-} Bordas;
+}Bordas;
 
 typedef struct Assets{
     Texture2D naveHeroi;
@@ -49,7 +57,7 @@ typedef struct Assets{
 }Assets;
 
 typedef struct Jogo{
-    Nave nave;
+    LinhaNave linha[NUM_LINHA];
     Heroi heroi;
     Bordas bordas[4];
     Assets assets;
@@ -136,16 +144,21 @@ void IniciaJogo(Jogo *j){
     j->heroi.bala.tiro = LoadSound("assets/shoot.wav");
     j->heroi.vida = 3;
 
-
-    j->nave.pos = (Rectangle) {0, 15, STD_SIZE_X, STD_SIZE_Y};
-    j->nave.color = RED;
-    j->nave.velocidade = 3;
-    /*direcao = 1 faz nave mover para direita, direcao = 0 faz mover para esquerda*/
-    j->nave.direcao = 1;
-    j->nave.bala.ativa = 0;
-    j->nave.bala.tempo = GetTime();
-    j->nave.bala.velocidade = 5;
-    j->nave.bala.tiro = LoadSound("assets/shoot.wav");
+    for (int i = 0; i < NUM_LINHA; i++) { //Cria NAVES
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            j->linha[i].naves[k].pos = (Rectangle) {k * 60, 15, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
+            j->linha[i].naves[k].color = RED;
+            j->linha[i].naves[k].bala.ativa = 0;
+            j->linha[i].naves[k].bala.tempo = GetTime();
+            j->linha[i].naves[k].bala.velocidade = 5;
+            j->linha[i].naves[k].bala.tiro = LoadSound("assets/shoot.wav");
+            j->linha[i].naves[k].status = 1;
+            j->linha[i].naves[k].velocidade = 5;
+        }
+        j->linha[i].direcao = 1;
+        j->linha[i].tempo = 0;
+        j->linha[i].status = 1;
+    }
 
     //borda encima
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10};
@@ -255,10 +268,18 @@ void AtualizaFrameDesenho(Jogo *j){
 
 void AtualizaNavePos(Jogo *j){
     ColisaoBordas(j);
-    if(j->nave.direcao == 1){
-        j->nave.pos.x += j->nave.velocidade;
-    }else{
-        j->nave.pos.x -= j->nave.velocidade;
+    for (int i = 0; i < NUM_LINHA; i++){
+        if (j->linha[i].status) {  // Se a linha está ativada, movimenta as naves
+            for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+                if (j->linha[i].naves[k].status) {  // Somente move as naves que estão ativas
+                    if (j->linha[i].direcao == 1) {
+                        j->linha[i].naves[k].pos.x += j->linha[i].naves[k].velocidade;  // Move para a direita
+                    } else {
+                        j->linha[i].naves[k].pos.x -= j->linha[i].naves[k].velocidade;  // Move para a esquerda
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -282,25 +303,31 @@ void DescarregaImagens(Jogo *j){
 }
 
 void DesenhaNaves(Jogo *j){
-    Vector2 tamanhoFrame = {32, 32};
+    for (int i = 0; i < NUM_LINHA; i++){ 
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            Vector2 tamanhoFrame = {32, 32};
     
-    static Vector2 frame = {0, 0};
-    static float tempoUltimaTroca = 0;
+            static Vector2 frame = {0, 0};
+            static float tempoUltimaTroca = 0;
     
-    if(GetTime() - tempoUltimaTroca >= 1){
-        if(frame.x == 0){
-            frame.x = 1;
-        }else{
-            frame.x = 0;
-        }
+            if(GetTime() - tempoUltimaTroca >= 1){
+                if(frame.x == 0){
+                    frame.x = 1;
+                }else{
+                    frame.x = 0;
+                }
 
-        tempoUltimaTroca = GetTime();
-    }
-    Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
-     tamanhoFrame.x, tamanhoFrame.y};
-    DrawTexturePro(j->assets.naveVerde, frameRecNave, (Rectangle){j->nave.pos.x, j->nave.pos.y, 32, 32},
-    (Vector2){0, 0}, 0.0f, WHITE);
-    
+                tempoUltimaTroca = GetTime();
+            }
+            Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
+            tamanhoFrame.x, tamanhoFrame.y};
+            if(j->linha->naves->status==1){
+                DrawTexturePro(j->assets.naveVerde, frameRecNave, (Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},
+                (Vector2){0, 0}, 0.0f, WHITE);
+                }
+                }
+
+     }
 }
 
 void DesenhaHeroi(Jogo *j){
@@ -313,8 +340,6 @@ void DesenhaHeroi(Jogo *j){
     Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
      tamanhoFrame.x, tamanhoFrame.y};
     DrawTexturePro(j->assets.naveHeroi, frameRecNave, (Rectangle){j->heroi.pos.x, j->heroi.pos.y, 32, 32}, (Vector2){0, 0}, 0.0f, WHITE);
-     //DrawRectangle(j->heroi.pos.x, j->heroi.pos.y, j->heroi.pos.width, j->heroi.pos.height, j->heroi.color); 
-
 }
 
 void DesenhaBordas(Jogo *j){
@@ -324,7 +349,11 @@ void DesenhaBordas(Jogo *j){
 }
 
 void DesenhaBalas(Jogo *j){
-    DrawRectangleRec(j->nave.bala.pos, GREEN);
+    for (int i = 0; i < NUM_LINHA; i++){
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            DrawRectangleRec(j->linha[i].naves[k].bala.pos, GREEN);
+        }
+    }
 }
 
 void DesenhaBalasHeroi(Jogo *j){
@@ -332,19 +361,27 @@ void DesenhaBalasHeroi(Jogo *j){
 }
 
 void AtiraBalas(Jogo *j){
-    if(j->nave.bala.ativa == 0 && GetTime()-j->nave.bala.tempo > 3){
-        j->nave.bala.pos = (Rectangle){j->nave.pos.x+j->nave.pos.width/2, j->nave.pos.y+j->nave.pos.height/2, 
-        LARGURA_BALA, ALTURA_BALA};
-        j->nave.bala.ativa = 1;
-        j->nave.bala.tempo = GetTime();
-        PlaySound(j->nave.bala.tiro);
-    }
-    else if(ColisaoBalas(j)){
-        j->nave.bala.ativa = 0;
-    }
-    if(j->nave.bala.ativa == 1){
-        j->nave.bala.pos.y += j->nave.bala.velocidade;
-        DesenhaBalas(j);
+    for (int i = 0; i < NUM_LINHA; i++){
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            if(j->linha[i].naves[k].status==1){
+                if(j->linha[i].naves[k].bala.ativa == 0 && GetTime()-j->linha[i].naves[k].bala.tempo > 3){
+                    j->linha[i].naves[k].bala.pos = (Rectangle){j->linha[i].naves[k].pos.x+j->linha[i].naves[k].pos.width/2, j->linha[i].naves[k].pos.y+j->linha[i].naves[k].pos.height/2, 
+                    LARGURA_BALA, ALTURA_BALA};
+                    j->linha[i].naves[k].bala.ativa = 1;
+                    j->linha[i].naves[k].bala.tempo = GetTime();
+                    PlaySound(j->linha[i].naves[k].bala.tiro);
+            }
+            else if(ColisaoBalas(j)){
+                j->linha[i].naves[k].bala.ativa = 0;
+            }
+            if(j->linha[i].naves[k].bala.ativa == 1){
+                j->linha[i].naves[k].bala.pos.y += j->linha[i].naves[k].bala.velocidade;
+                DesenhaBalas(j);
+            }
+        }
+        }
+        
+        
     }
 }
 
@@ -365,36 +402,54 @@ void AtiraBalasHeroi(Jogo *j){
 }
 
 void ColisaoBordas(Jogo *j){
-    if(CheckCollisionRecs(j->nave.pos, j->bordas[2].pos)){
-        j->nave.direcao = 1;
-    }else if(CheckCollisionRecs(j->nave.pos, j->bordas[3].pos)){
-        j->nave.direcao = 0;
+    for (int i = 0; i < NUM_LINHA; i++){
+        if(j->linha[i].status){
+            for (int k = 0; k < NUM_NAVES_LINHA; k++)
+            {
+                if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[2].pos) && j->linha[i].naves[k].status==1){
+                    j->linha[i].direcao = 1;
+                }else if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[3].pos) && j->linha[i].naves[k].status==1){
+                    j->linha[i].direcao = 0;
+                }
+            }
+            
+        }
+        
     }
 }
 
 int ColisaoBalas(Jogo *j){
     // Colisao bala com heroi
-    if(CheckCollisionRecs(j->heroi.pos, j->nave.bala.pos) && (j->nave.bala.ativa==1)){
-        j->heroi.vida--; //Diminuição da vida Heroi
-        return 2;
-    }
-    // Colisao bala com borda de baixo
-    if(CheckCollisionRecs(j->nave.bala.pos, j->bordas[1].pos)){
-        return 1;
+    for (int i = 0; i < NUM_LINHA; i++){
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            if(CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos) && (j->linha[i].naves[k].bala.ativa==1)){
+                j->heroi.vida--; //Diminuição da vida Heroi
+                return 2;
+            }
+            // Colisao bala com borda de baixo
+            if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->bordas[1].pos)){
+                return 1;
+            }
+        }
     }
     return 0;
 }
 int ColisaoBalasHeroi(Jogo *j){
-    // Colisao bala com nave
-    if(CheckCollisionRecs(j->nave.pos, j->heroi.bala.pos) && (j->heroi.bala.ativa==1)){
-        return 2;
-    }
-    // Colisao bala com borda de cima
-    if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
-        return 1;
+    for (int i = 0; i < NUM_LINHA; i++){
+        for (int k = 0; k < NUM_NAVES_LINHA;k++){
+            // Colisao bala com nave
+            if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->heroi.bala.pos) && (j->heroi.bala.ativa==1)){
+                j->linha[i].naves[k].status = 0;
+            }
+            // Colisao bala com borda de cima
+            if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
+                return 1;
+            }
+        }
     }
     return 0;
 }
+
 void Vencedor(Jogo *j){
     int textWidth = MeasureText("VOCÊ PERDEU!", 50);
     int textWidth2 = MeasureText("VOCÊ VENCEU!", 50);
