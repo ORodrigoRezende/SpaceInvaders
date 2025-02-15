@@ -169,9 +169,9 @@ void IniciaJogo(Jogo *j){
     }
 
     for (int i = 0; i < 5; i++) {
-        j->barreiras[i].pos = (Rectangle){LARGURA_JANELA / 100 + i * 150, ALTURA_JANELA / 2 - 50, 25, 25};
+        j->barreiras[i].pos = (Rectangle){80 + (i * 150), 250, 25, 25};
         j->barreiras[i].color = GRAY;
-        j->barreiras[i].vida = 2;
+        j->barreiras[i].vida = 5;
     }
 
     //borda encima
@@ -235,7 +235,7 @@ void DesenhaPlacar(Jogo *j){
 void DesenhaBarreiras(Jogo *j) {
     for (int i = 0; i < 5; i++) {
         if (j->barreiras[i].vida > 0) {
-            DrawTexture(j->assets.barreira, 175 +(i*150), 250 , WHITE);
+            DrawTexture(j->assets.barreira, 80 + (i*150), 250 , WHITE);
         }
     }
 }
@@ -441,68 +441,77 @@ bool ColisaoBordas(Jogo *j){
     return false;
 }
 
-int ColisaoBalas(Jogo *j){
-    // Colisao bala com heroi
-    for (int i = 0; i < NUM_LINHA; i++){
-        for (int k = 0; k < NUM_NAVES_LINHA; k++){
-            if(j->linha[i].naves[k].status){
-                if(CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos) && (j->linha[i].naves[k].bala.ativa==1)){
-                    j->heroi.vida--; //Diminuição da vida Heroi
-                    return 2;
-                }
-                // Colisao bala com borda de baixo
-                if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->bordas[1].pos)){
-                    return 1;
-                }
-            }else{
-                j->linha[i].naves[k].bala.ativa=0;
-            }
-            
-            for (int i = 0; i < 5; i++) {
-                if(CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[i].pos)){
-                    j->barreiras[i].vida --;
-                    j->linha[i].naves[k].bala.ativa = 0;
-                    if (j->barreiras[i].vida < 0 ) {
-                        j->barreiras[i].pos.width = 0;  
-                        j->barreiras[i].pos.height = 0;
+int ColisaoBalas(Jogo *j) {
+    int colidiu = 0;
+
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].bala.ativa) {
+
+                // Verifica colisão da bala da nave com as barreiras
+                for (int b = 0; b < 5; b++) {
+                    if (j->barreiras[b].vida > 0 && CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[b].pos)) {
+                        j->barreiras[b].vida--; 
+                        j->linha[i].naves[k].bala.ativa = 0; 
+                        colidiu = 1; 
+                        break;
                     }
-                    return 1;
-                } 
-            }
+                }
 
+                // Verifica colisão da bala da nave com o herói
+                if (j->linha[i].naves[k].bala.ativa && CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos)) {
+                    j->heroi.vida--; 
+                    j->linha[i].naves[k].bala.ativa = 0; 
+                    colidiu = 1;
+                }
+            }
         }
     }
-     
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].bala.ativa) {
+                if (j->linha[i].naves[k].bala.pos.y > ALTURA_JANELA) { 
+                    j->linha[i].naves[k].bala.ativa = 0;
+                }
+            }
+        }
+    }
 
-    return 0;
+    return colidiu;
 }
+
+
+
+
 int ColisaoBalasHeroi(Jogo *j){
-    for (int i = 0; i < NUM_LINHA; i++){
-        for (int k = 0; k < NUM_NAVES_LINHA;k++){
-            // Colisao bala com nave
-            if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->heroi.bala.pos) && (j->heroi.bala.ativa==1)){
+    int colisão = 0;
+
+    // Verifica colisão da bala do herói com as barreiras
+    for (int i = 0; i < 5; i++) {
+        if (j->barreiras[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
+            j->barreiras[i].vida--; 
+            j->heroi.bala.ativa = 0; // Desativa a bala
+            colisão = 1;
+        }
+    }
+    if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
+        colisão = 1;
+    }
+    // Verifica colisão da bala do herói com as naves
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].status && CheckCollisionRecs(j->heroi.bala.pos, j->linha[i].naves[k].pos)) {
                 j->linha[i].naves[k].status = 0;
-            }
-            // Colisao bala com borda de cima
-            if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
-                return 1;
+                j->heroi.bala.ativa = 0; 
+                colisão = 1;
             }
         }
     }
-    for (int i = 0; i < 5; i++) {
-        if (CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
-            j->barreiras[i].vida --;
-            j->heroi.bala.ativa = 0;
-            if (j->barreiras[i].vida < 0 ) {
-                j->barreiras[i].pos.width = 0;  
-                j->barreiras[i].pos.height = 0;
-            }
-            return 1;
-        } 
-    }
-
-    return 0;
+    return colisão;
 }
+
+
+
 
 void Vencedor(Jogo *j){
     int textWidth = MeasureText("VOCÊ PERDEU!", 50);
