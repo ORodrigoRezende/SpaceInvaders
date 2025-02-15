@@ -13,6 +13,7 @@
 #define ALTURA_BALA 15
 #define NUM_LINHA 3
 #define NUM_NAVES_LINHA 7
+#define OFFSET_X 100
 
 typedef struct Bala{
     Rectangle pos;
@@ -39,9 +40,8 @@ typedef struct Barreiras {
 
 typedef struct{
     Nave naves[NUM_NAVES_LINHA];
-    int direcao;
-    double tempo;
     int status;
+    int direcao;
 }LinhaNave;
 
 typedef struct Heroi{
@@ -91,7 +91,7 @@ void AtualizaNavePos(Jogo *j);
 void AtualizaHeroiPos(Jogo *j);
 void DesenhaNaves(Jogo *j);
 void DesenhaHeroi(Jogo *j);
-void ColisaoBordas(Jogo *j);
+bool ColisaoBordas(Jogo *j);
 void DesenhaBordas(Jogo *j);
 int ColisaoBalas(Jogo *j);
 int ColisaoBalasHeroi(Jogo *j);
@@ -155,17 +155,16 @@ void IniciaJogo(Jogo *j){
 
     for (int i = 0; i < NUM_LINHA; i++) { //Cria NAVES
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
-            j->linha[i].naves[k].pos = (Rectangle) {k * 60, 15, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
+            j->linha[i].naves[k].pos = (Rectangle) {OFFSET_X + k * 50, i*50 + 15, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
             j->linha[i].naves[k].color = RED;
             j->linha[i].naves[k].bala.ativa = 0;
             j->linha[i].naves[k].bala.tempo = GetTime();
             j->linha[i].naves[k].bala.velocidade = 5;
             j->linha[i].naves[k].bala.tiro = LoadSound("assets/shoot.wav");
             j->linha[i].naves[k].status = 1;
-            j->linha[i].naves[k].velocidade = 5;
+            j->linha[i].naves[k].velocidade = 1;
         }
         j->linha[i].direcao = 1;
-        j->linha[i].tempo = 0;
         j->linha[i].status = 1;
     }
 
@@ -285,20 +284,27 @@ void AtualizaFrameDesenho(Jogo *j){
 }
 
 void AtualizaNavePos(Jogo *j){
-    ColisaoBordas(j);
-    for (int i = 0; i < NUM_LINHA; i++){
-        if (j->linha[i].status) {  // Se a linha está ativada, movimenta as naves
+
+    bool bateuBorda = ColisaoBordas(j);
+
+    if (bateuBorda) {
+        for (int i = 0; i < NUM_LINHA; i++) {
+            j->linha[i].direcao *= -1;  // Inverte a direção de TODAS as linhas
             for (int k = 0; k < NUM_NAVES_LINHA; k++) {
-                if (j->linha[i].naves[k].status) {  // Somente move as naves que estão ativas
-                    if (j->linha[i].direcao == 1) {
-                        j->linha[i].naves[k].pos.x += j->linha[i].naves[k].velocidade;  // Move para a direita
-                    } else {
-                        j->linha[i].naves[k].pos.x -= j->linha[i].naves[k].velocidade;  // Move para a esquerda
-                    }
-                }
+                j->linha[i].naves[k].pos.y += 32;  // Move TODAS as naves para baixo
             }
         }
     }
+
+    // Movimenta todas as naves na direção correta
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].status) {  // Somente move as naves ativas
+                j->linha[i].naves[k].pos.x += j->linha[i].naves[k].velocidade * j->linha[i].direcao;
+            }
+        }
+    }
+
 }
 
 void AtualizaHeroiPos(Jogo *j){
@@ -341,11 +347,11 @@ void DesenhaNaves(Jogo *j){
             }
             Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
             tamanhoFrame.x, tamanhoFrame.y};
-            if(j->linha->naves->status==1){
+            if(j->linha[i].naves[k].status==1){
                 DrawTexturePro(j->assets.naveVerde, frameRecNave, (Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},
                 (Vector2){0, 0}, 0.0f, WHITE);
-                }
-                }
+            }
+        }
 
      }
 }
@@ -371,7 +377,7 @@ void DesenhaBordas(Jogo *j){
 void DesenhaBalas(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
-            DrawRectangleRec(j->linha[i].naves[k].bala.pos, GREEN);
+                DrawRectangleRec(j->linha[i].naves[k].bala.pos, GREEN);
         }
     }
 }
@@ -390,15 +396,15 @@ void AtiraBalas(Jogo *j){
                     j->linha[i].naves[k].bala.ativa = 1;
                     j->linha[i].naves[k].bala.tempo = GetTime();
                     PlaySound(j->linha[i].naves[k].bala.tiro);
+                }
+                else if(ColisaoBalas(j)){
+                    j->linha[i].naves[k].bala.ativa = 0;
+                }
+                if(j->linha[i].naves[k].bala.ativa == 1){
+                    j->linha[i].naves[k].bala.pos.y += j->linha[i].naves[k].bala.velocidade;
+                    DesenhaBalas(j);
+                }
             }
-            else if(ColisaoBalas(j)){
-                j->linha[i].naves[k].bala.ativa = 0;
-            }
-            if(j->linha[i].naves[k].bala.ativa == 1){
-                j->linha[i].naves[k].bala.pos.y += j->linha[i].naves[k].bala.velocidade;
-                DesenhaBalas(j);
-            }
-        }
         }
         
         
@@ -421,21 +427,18 @@ void AtiraBalasHeroi(Jogo *j){
     }
 }
 
-void ColisaoBordas(Jogo *j){
+bool ColisaoBordas(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++){
-        if(j->linha[i].status){
-            for (int k = 0; k < NUM_NAVES_LINHA; k++)
-            {
-                if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[2].pos) && j->linha[i].naves[k].status==1){
-                    j->linha[i].direcao = 1;
-                }else if(CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[3].pos) && j->linha[i].naves[k].status==1){
-                    j->linha[i].direcao = 0;
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            if (j->linha[i].naves[k].status) {  // Verifica apenas naves ativas
+                if (CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[2].pos) || 
+                    CheckCollisionRecs(j->linha[i].naves[k].pos, j->bordas[3].pos)) {
+                    return true;  // Se qualquer nave colidiu, retorna verdadeiro
                 }
             }
-            
         }
-        
     }
+    return false;
 }
 
 int ColisaoBalas(Jogo *j){
