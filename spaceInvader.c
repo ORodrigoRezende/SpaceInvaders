@@ -44,6 +44,11 @@ typedef struct{
     int direcao;
 }LinhaNave;
 
+typedef struct Coracao{
+    Rectangle pos;
+    Color color;
+}CoracaoVida;
+
 typedef struct Heroi{
     Rectangle pos;
     Color color;
@@ -60,6 +65,7 @@ typedef struct Assets{
     Texture2D naveHeroi;
     Texture2D naveVerde;
     Texture2D barreira;
+    Texture2D coracao;
     Sound tiro;
 }Assets;
 
@@ -69,12 +75,14 @@ typedef struct Jogo{
     Bordas bordas[4];
     Assets assets;
     Barreiras barreiras[5]; 
+    CoracaoVida coracao[3];
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
     int status;
     char player[20];
     int placar[5];
+    int pontos;
     bool playerEmEdicao;
 }Jogo;
 
@@ -106,6 +114,8 @@ void DesenhaBalas(Jogo *j);
 void IniciaBarreira(Jogo *j);
 void IniciaHeroi(Jogo *j);
 void IniciaGameplay(Jogo *j);
+void IniciaCoracao(Jogo *j);
+void DesenhaVidas(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -161,6 +171,7 @@ void IniciaGameplay(Jogo *j){
     IniciaNaves(j);
     IniciaBarreira(j);
     IniciaHeroi(j);
+    IniciaCoracao(j);
 }
 
 void IniciaNaves(Jogo *j){
@@ -180,6 +191,13 @@ void IniciaNaves(Jogo *j){
     }
 }
 
+void IniciaCoracao(Jogo *j){
+    for (int i = 0; i < j->heroi.vida; i++) {
+        j->coracao[i].pos = (Rectangle) {10 + (i * 40), 550, 20, 20};
+        j->coracao[i].color = WHITE;
+    }
+}
+
 void IniciaHeroi(Jogo *j){
     j->heroi.pos = (Rectangle) {LARGURA_JANELA/2 - STD_SIZE_X/2, ALTURA_JANELA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     j->heroi.color = BLUE;
@@ -193,7 +211,7 @@ void IniciaHeroi(Jogo *j){
 
 void IniciaBarreira(Jogo *j){
     for (int i = 0; i < 5; i++) {
-        j->barreiras[i].pos = (Rectangle){80 + (i * 150), 250, 25, 25};
+        j->barreiras[i].pos = (Rectangle){80 + (i * 150), 500, 25, 25};
         j->barreiras[i].color = GRAY;
         j->barreiras[i].vida = 5;
     }
@@ -245,8 +263,14 @@ void DesenhaPlacar(Jogo *j){
 void DesenhaBarreiras(Jogo *j) {
     for (int i = 0; i < 5; i++) {
         if (j->barreiras[i].vida > 0) {
-            DrawTexture(j->assets.barreira, 80 + (i*150), 250 , WHITE);
+            DrawTexture(j->assets.barreira, 80 + (i*150), 500 , WHITE);
         }
+    }
+}
+
+void DesenhaVidas(Jogo *j) {
+    for (int i = 0; i < j->heroi.vida; i++) {
+        DrawTexture(j->assets.naveHeroi, 10 + (i * 40), 550, WHITE);
     }
 }
 
@@ -266,6 +290,7 @@ void DesenhaJogo(Jogo *j){
     DesenhaBordas(j);
     DesenhaBarreiras(j);
     DesenhaBalas(j);
+    DesenhaVidas(j);
     EndDrawing();
 }
 
@@ -273,12 +298,18 @@ void DesenhaJogoPos(Jogo *j){
     BeginDrawing();
     ClearBackground(BLACK);
     DesenhaBordas(j);
+
+    char textoPontos[50];
+    sprintf(textoPontos, "Pontuação Final: %d", j->pontos);
+    DrawText(textoPontos, 250, 325, 30, WHITE);
+
     //Home button
-    Rectangle button = {300, 250, 200, 60};
+    Rectangle button = {300, 400, 200, 60};
     Vector2 mouse = GetMousePosition();
     bool hover = CheckCollisionPointRec(mouse, button);
-    DrawRectangleRec(button, hover ? GRAY : DARKGRAY);
-    DrawText("Home", button.x + 40, button.y + 20, 20, WHITE);
+    DrawRectangleRec(button, hover ? DARKGRAY:BLACK);
+    DrawRectangleLinesEx(button, 3, WHITE);
+    DrawText("Home", button.x + 70, button.y + 20, 20, WHITE);
     if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         j->status = 0;
         j->heroi.vida = 3;
@@ -331,12 +362,14 @@ void CarregaImagens(Jogo *j){
     j->assets.naveHeroi = LoadTexture("assets/naveHeroi.png");
     j->assets.naveVerde = LoadTexture("assets/GreenAnimation.png");
     j->assets.barreira = LoadTexture("assets/barreira.png");
+    j->assets.coracao = LoadTexture("assets/coracao.png");
 }
 
 void DescarregaImagens(Jogo *j){
     UnloadTexture(j->assets.naveHeroi);
     UnloadTexture(j->assets.naveVerde);
     UnloadTexture(j->assets.barreira);
+    UnloadTexture(j->assets.coracao);
 }
 
 void DesenhaNaves(Jogo *j){
