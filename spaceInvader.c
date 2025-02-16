@@ -14,6 +14,7 @@
 #define NUM_LINHA 3
 #define NUM_NAVES_LINHA 7
 #define OFFSET_X 100
+#define MAX_TAM 100
 
 typedef struct Bala{
     Rectangle pos;
@@ -23,6 +24,11 @@ typedef struct Bala{
     int velocidade;
     Sound tiro;
 }Bala;
+
+typedef struct Placar{
+    char player[50];
+    int pontuacao;
+}Placar;
 
 typedef struct Nave{
     Rectangle pos;
@@ -76,12 +82,12 @@ typedef struct Jogo{
     Assets assets;
     Barreiras barreiras[5]; 
     CoracaoVida coracao[3];
+    Placar placar[5];
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
     int status;
     char player[20];
-    int placar[5];
     int pontos;
     bool playerEmEdicao;
 }Jogo;
@@ -116,6 +122,10 @@ void IniciaHeroi(Jogo *j);
 void IniciaGameplay(Jogo *j);
 void IniciaCoracao(Jogo *j);
 void DesenhaVidas(Jogo *j);
+void AtualizaStatusJogo(Jogo *j);
+void Pontuacao(Jogo *j,int linha);
+void LerPlacar(Jogo *j);
+void AtualizaPlacar(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -127,24 +137,23 @@ int main(){
 
     InitWindow(jogo.larguraJanela, jogo.alturaJanela, "Space Invaders");
     SetTargetFPS(60);
-    IniciaJogo(&jogo);
+    jogo.status = 0;
     CarregaImagens(&jogo);
     Music musicaJogo = LoadMusicStream("assets/musica.mp3");
     PlayMusicStream(musicaJogo);
 
     while(!WindowShouldClose()){ //status 0 Home ;status 1 Jogo ; status 2 Pós jogo
         if(jogo.status==1){
-            //IniciaGameplay(&jogo);
             UpdateMusicStream(musicaJogo);
             AtualizaFrameDesenho(&jogo);
         }else if(jogo.status==2){
             DesenhaJogoPos(&jogo);
-            
         }else{
+            DrawHome(&jogo);
             if (IsKeyPressed(KEY_ENTER)){
                 jogo.status = 1;
+                AtualizaStatusJogo(&jogo);
             }
-            DrawHome(&jogo);
         }
     }
     
@@ -155,10 +164,21 @@ int main(){
    
 }
 
+void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
+    if (j->status == 1) {
+        AtualizaPlacar(j);
+        IniciaJogo(j);  
+    }
+}
+
+void AtualizaPlacar(Jogo *j){
+    
+}
+
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
-    j->status = 0;
-
+    j->pontos = 0;
+    
     IniciaGameplay(j);
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //borda encima
     j->bordas[1].pos = (Rectangle){0, ALTURA_JANELA-10, LARGURA_JANELA, 10}; //borda embaixo
@@ -221,6 +241,7 @@ void DrawHome(Jogo *j){ //Draw the game's home page
     BeginDrawing();
     ClearBackground(BLACK);
     DrawText("Placar dos 5 últimos jogos:", 250, 375, 20, WHITE);
+    LerPlacar(j);
     DesenhaPlacar(j);
     DrawText("Space Invaders", 250, 100, 40, WHITE);
     DrawText("Digite seu nome:", 250, 200, 20, WHITE);
@@ -252,10 +273,36 @@ void DrawHome(Jogo *j){ //Draw the game's home page
     EndDrawing();
 }
 
+void LerPlacar(Jogo *j){
+    char buf[MAX_TAM];
+    char nome[50];
+    int pontuacao;
+    int i=0;
+    FILE *arq;
+    arq = fopen("historico.txt", "r");
+    if(arq == NULL) return;
+
+    while (i < 5 && fgets(buf, MAX_TAM, arq) != NULL) {
+        char *token = strtok(buf, ",");
+        if (token != NULL) {
+            strcpy(nome, token);
+            token = strtok(NULL, ",");
+            if (token != NULL) {
+                pontuacao = atoi(token);  // Usando atoi para converter para int
+                strcpy(j->placar[i].player, nome);
+                j->placar[i].pontuacao = pontuacao;
+                i++;
+            }
+        }
+    }
+    
+    fclose(arq);
+}
+
 void DesenhaPlacar(Jogo *j){
     for (int i = 0; i < 5; i++) {
-    char pontos[20];
-    sprintf(pontos, "Jogo %d: %d", i + 1, j->placar[i]);
+    char pontos[60];
+    sprintf(pontos, "%d %s : %d", i + 1, j->placar[i].player,j->placar[i].pontuacao);
     DrawText(pontos, 250, 425 + i * 30, 20, WHITE);
     }
 }
@@ -270,7 +317,7 @@ void DesenhaBarreiras(Jogo *j) {
 
 void DesenhaVidas(Jogo *j) {
     for (int i = 0; i < j->heroi.vida; i++) {
-        DrawTexture(j->assets.naveHeroi, 10 + (i * 40), 550, WHITE);
+        DrawTexture(j->assets.coracao, 10 + (i * 40), 550, WHITE);
     }
 }
 
@@ -362,7 +409,7 @@ void CarregaImagens(Jogo *j){
     j->assets.naveHeroi = LoadTexture("assets/naveHeroi.png");
     j->assets.naveVerde = LoadTexture("assets/GreenAnimation.png");
     j->assets.barreira = LoadTexture("assets/barreira.png");
-    j->assets.coracao = LoadTexture("assets/coracao.png");
+    j->assets.coracao = LoadTexture("assets/heart.png");
 }
 
 void DescarregaImagens(Jogo *j){
@@ -509,6 +556,12 @@ int ColisaoBalas(Jogo *j) {
                         }
                     }
 
+                    if (j->linha[i].naves[k].bala.ativa && j->heroi.bala.ativa && (CheckCollisionRecs(j->heroi.bala.pos, j->linha[i].naves[k].bala.pos) || CheckCollisionRecs(j->heroi.bala.pos, j->linha[i].naves[k].bala.pos))) { //Colisao Bala com bala
+                        j->heroi.bala.ativa =0;
+                        j->linha[i].naves[k].bala.ativa = 0; 
+                        colidiu = 1;
+                    }
+
                     // Verifica colisão da bala da nave com o herói
                     if (j->linha[i].naves[k].bala.ativa && CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos)) {
                         j->heroi.vida--; 
@@ -556,6 +609,7 @@ int ColisaoBalasHeroi(Jogo *j){
         for (int k = 0; k < NUM_NAVES_LINHA; k++) {
             if (j->linha[i].naves[k].status && CheckCollisionRecs(j->heroi.bala.pos, j->linha[i].naves[k].pos) && j->heroi.bala.ativa) {
                 j->linha[i].naves[k].status = 0;
+                Pontuacao(j,i);
                 j->heroi.bala.ativa = 0; 
                 colisão = 1;
             }
@@ -565,7 +619,15 @@ int ColisaoBalasHeroi(Jogo *j){
 }
 
 
-
+void Pontuacao(Jogo *j,int linha){
+    if (linha==0){
+        j->pontos+=30;
+    }else if (linha==1){
+        j->pontos+=20;
+    }else if (linha==2){
+        j->pontos+=10;
+    }  
+}
 
 void Vencedor(Jogo *j){
     int textWidth = MeasureText("VOCÊ PERDEU!", 50);
