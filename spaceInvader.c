@@ -15,6 +15,7 @@
 #define NUM_NAVES_LINHA 7
 #define OFFSET_X 100
 #define MAX_TAM 100
+#define MAX_PLACARES 5
 
 typedef struct Bala{
     Rectangle pos;
@@ -172,8 +173,45 @@ void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
 }
 
 void AtualizaPlacar(Jogo *j){
-    
+    Placar placares[MAX_PLACARES + 1]; // Criamos espaço extra para a nova pontuação
+    int count = 0;
+
+    // Lê os placares do arquivo
+    FILE *file = fopen("historico.txt", "r");
+    if (file != NULL) {
+        while (count < MAX_PLACARES && fscanf(file, "%19s %d", placares[count].player, &placares[count].pontuacao) == 2) {
+            count++;
+        }
+        fclose(file);
+    }
+
+    // Adiciona o novo placar ao final da lista
+    if (count < MAX_PLACARES) {
+        strcpy(placares[count].player, j->player);
+        placares[count].pontuacao = j->pontos;
+        count++;
+    } else {
+        // Se já houver 5 registros, remove o mais antigo (o primeiro) e adiciona no final
+        for (int i = 1; i < MAX_PLACARES; i++) {
+            placares[i - 1] = placares[i];
+        }
+        strcpy(placares[MAX_PLACARES - 1].player, j->player);
+        placares[MAX_PLACARES - 1].pontuacao = j->pontos;
+    }
+
+    // Salva os placares no arquivo
+    file = fopen("historico.txt", "w");
+    if (file != NULL) {
+        for (int i = 0; i < count; i++) {
+            fprintf(file, "%s %d\n", placares[i].player, placares[i].pontuacao);
+        }
+        fclose(file);
+    }
 }
+
+
+
+
 
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
@@ -484,11 +522,13 @@ void AtiraBalas(Jogo *j){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
             if(j->linha[i].naves[k].status==1){
                 if(j->linha[i].naves[k].bala.ativa == 0 && GetTime()-j->linha[i].naves[k].bala.tempo > 3){
+                    if (rand() % 100 < 1){
                     j->linha[i].naves[k].bala.pos = (Rectangle){j->linha[i].naves[k].pos.x+j->linha[i].naves[k].pos.width/2, j->linha[i].naves[k].pos.y+j->linha[i].naves[k].pos.height/2, 
                     LARGURA_BALA, ALTURA_BALA};
                     j->linha[i].naves[k].bala.ativa = 1;
                     j->linha[i].naves[k].bala.tempo = GetTime();
                     PlaySound(j->linha[i].naves[k].bala.tiro);
+                    }
                 }
                 if(j->linha[i].naves[k].bala.ativa){
                     if(ColisaoBalas(j)){
