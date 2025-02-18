@@ -1,6 +1,5 @@
-Rodrigo Rezende,100
-Antonio,50
-Rodrigo Rezende,100
-Antonio,50
-Rodrigo Rezende,100
-Antonio,50
+Rodrigo 0
+Rodrigo 0
+Rodrigo 0
+Rodrigo 0
+ 0

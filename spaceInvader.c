@@ -26,11 +26,6 @@ typedef struct Bala{
     Sound tiro;
 }Bala;
 
-typedef struct Placar{
-    char player[50];
-    int pontuacao;
-}Placar;
-
 typedef struct Nave{
     Rectangle pos;
     Color color;
@@ -68,6 +63,11 @@ typedef struct Bordas{
     Rectangle pos;
 }Bordas;
 
+typedef struct {
+    char player[20];
+    int pontuacao;
+} Placar;
+
 typedef struct Assets{
     Texture2D naveHeroi;
     Texture2D naveVerde;
@@ -84,12 +84,13 @@ typedef struct Jogo{
     Barreiras barreiras[5]; 
     CoracaoVida coracao[3];
     Placar placar[5];
+    double nivel;
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
     int status;
-    char player[20];
-    int pontos;
+    char player[50];
+    int pontuacao;
     bool playerEmEdicao;
 }Jogo;
 
@@ -127,6 +128,8 @@ void AtualizaStatusJogo(Jogo *j);
 void Pontuacao(Jogo *j,int linha);
 void LerPlacar(Jogo *j);
 void AtualizaPlacar(Jogo *j);
+int VerificaNaves(Jogo *j);
+void AtualizaNivel(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -165,6 +168,35 @@ int main(){
    
 }
 
+void AtualizaNivel(Jogo *j){
+    if (VerificaNaves(j)==1){
+        j->nivel++;
+        for (int i = 0; i < NUM_LINHA; i++) { //Cria NAVES
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            j->linha[i].naves[k].pos = (Rectangle) {OFFSET_X + k * 50, i*50 + 15, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
+            j->linha[i].naves[k].color = RED;
+            j->linha[i].naves[k].bala.ativa = 0;
+            j->linha[i].naves[k].bala.velocidade = 5;
+            j->linha[i].naves[k].status = 1;
+            j->linha[i].naves[k].velocidade = 1*j->nivel;
+        }
+        j->linha[i].direcao = 1;
+        j->linha[i].status = 1;
+    }
+    }
+}
+
+int VerificaNaves(Jogo *j){
+    for (int i = 0; i < NUM_LINHA; i++){
+        for (int k = 0; k < NUM_NAVES_LINHA; k++){
+            if(j->linha[i].naves[k].status==1){
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
     if (j->status == 1) {
         AtualizaPlacar(j);
@@ -172,8 +204,8 @@ void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
     }
 }
 
-void AtualizaPlacar(Jogo *j){
-    Placar placares[MAX_PLACARES + 1]; // Criamos espaço extra para a nova pontuação
+void AtualizaPlacar(Jogo *j) {
+    /*
     int count = 0;
 
     // Lê os placares do arquivo
@@ -188,34 +220,31 @@ void AtualizaPlacar(Jogo *j){
     // Adiciona o novo placar ao final da lista
     if (count < MAX_PLACARES) {
         strcpy(placares[count].player, j->player);
-        placares[count].pontuacao = j->pontos;
+        placares[count].pontuacao = j->pontuacao;
         count++;
     } else {
         // Se já houver 5 registros, remove o mais antigo (o primeiro) e adiciona no final
         for (int i = 1; i < MAX_PLACARES; i++) {
             placares[i - 1] = placares[i];
         }
-        strcpy(placares[MAX_PLACARES - 1].player, j->player);
-        placares[MAX_PLACARES - 1].pontuacao = j->pontos;
+        strcpy(j->placar[MAX_PLACARES - 1].player, j->player);
+        j->placar[MAX_PLACARES - 1].pontuacao = j->pontuacao;
     }
 
     // Salva os placares no arquivo
     file = fopen("historico.txt", "w");
     if (file != NULL) {
         for (int i = 0; i < count; i++) {
-            fprintf(file, "%s %d\n", placares[i].player, placares[i].pontuacao);
+            fprintf(file, "%s %d\n", j->placar[i].player, j->placar[i].pontuacao);
         }
         fclose(file);
-    }
+    }*/
 }
-
-
-
-
 
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
-    j->pontos = 0;
+    j->pontuacao = 0;
+    j->nivel = 1;
     
     IniciaGameplay(j);
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //borda encima
@@ -242,7 +271,7 @@ void IniciaNaves(Jogo *j){
             j->linha[i].naves[k].bala.velocidade = 5;
             j->linha[i].naves[k].bala.tiro = LoadSound("assets/shoot.wav");
             j->linha[i].naves[k].status = 1;
-            j->linha[i].naves[k].velocidade = 1;
+            j->linha[i].naves[k].velocidade = 1*j->nivel;
         }
         j->linha[i].direcao = 1;
         j->linha[i].status = 1;
@@ -269,7 +298,7 @@ void IniciaHeroi(Jogo *j){
 
 void IniciaBarreira(Jogo *j){
     for (int i = 0; i < 5; i++) {
-        j->barreiras[i].pos = (Rectangle){80 + (i * 150), 500, 25, 25};
+        j->barreiras[i].pos = (Rectangle){80 + (i * 150), 350, 25, 25};
         j->barreiras[i].color = GRAY;
         j->barreiras[i].vida = 5;
     }
@@ -312,35 +341,22 @@ void DrawHome(Jogo *j){ //Draw the game's home page
 }
 
 void LerPlacar(Jogo *j){
-    char buf[MAX_TAM];
-    char nome[50];
-    int pontuacao;
-    int i=0;
-    FILE *arq;
-    arq = fopen("historico.txt", "r");
-    if(arq == NULL) return;
+    FILE *file = fopen("historico.txt", "r");
+    if (file == NULL) return;
 
-    while (i < 5 && fgets(buf, MAX_TAM, arq) != NULL) {
-        char *token = strtok(buf, ",");
-        if (token != NULL) {
-            strcpy(nome, token);
-            token = strtok(NULL, ",");
-            if (token != NULL) {
-                pontuacao = atoi(token);  // Usando atoi para converter para int
-                strcpy(j->placar[i].player, nome);
-                j->placar[i].pontuacao = pontuacao;
-                i++;
-            }
-        }
+    int i = 0;
+    while (i < MAX_PLACARES && fscanf(file, "%19s %d", j->placar[i].player, &j->placar[i].pontuacao) == 2) {
+        i++;
     }
-    
-    fclose(arq);
+
+    fclose(file);
 }
+
 
 void DesenhaPlacar(Jogo *j){
     for (int i = 0; i < 5; i++) {
     char pontos[60];
-    sprintf(pontos, "%d %s : %d", i + 1, j->placar[i].player,j->placar[i].pontuacao);
+    sprintf(pontos, "%d - %s : %d", i + 1, j->placar[i].player,j->placar[i].pontuacao);
     DrawText(pontos, 250, 425 + i * 30, 20, WHITE);
     }
 }
@@ -348,7 +364,7 @@ void DesenhaPlacar(Jogo *j){
 void DesenhaBarreiras(Jogo *j) {
     for (int i = 0; i < 5; i++) {
         if (j->barreiras[i].vida > 0) {
-            DrawTexture(j->assets.barreira, 80 + (i*150), 500 , WHITE);
+            DrawTexture(j->assets.barreira, 80 + (i*150), 350 , WHITE);
         }
     }
 }
@@ -364,6 +380,7 @@ void AtualizaJogo(Jogo *j){
     AtualizaHeroiPos(j);
     AtiraBalas(j);
     AtiraBalasHeroi (j);
+    AtualizaNivel(j);
     Vencedor(j);
 }
  
@@ -385,7 +402,7 @@ void DesenhaJogoPos(Jogo *j){
     DesenhaBordas(j);
 
     char textoPontos[50];
-    sprintf(textoPontos, "Pontuação Final: %d", j->pontos);
+    sprintf(textoPontos, "Pontuação Final: %d", j->pontuacao);
     DrawText(textoPontos, 250, 325, 30, WHITE);
 
     //Home button
@@ -522,14 +539,13 @@ void AtiraBalas(Jogo *j){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
             if(j->linha[i].naves[k].status==1){
                 if(j->linha[i].naves[k].bala.ativa == 0 && GetTime()-j->linha[i].naves[k].bala.tempo > 3){
-                    if (rand() % 100 < 1){
+                    if (rand() % 100 < (j->nivel)) {
                     j->linha[i].naves[k].bala.pos = (Rectangle){j->linha[i].naves[k].pos.x+j->linha[i].naves[k].pos.width/2, j->linha[i].naves[k].pos.y+j->linha[i].naves[k].pos.height/2, 
                     LARGURA_BALA, ALTURA_BALA};
                     j->linha[i].naves[k].bala.ativa = 1;
                     j->linha[i].naves[k].bala.tempo = GetTime();
                     PlaySound(j->linha[i].naves[k].bala.tiro);
-                    }
-                }
+                }}
                 if(j->linha[i].naves[k].bala.ativa){
                     if(ColisaoBalas(j)){
                         j->linha[i].naves[k].bala.ativa = 0;
@@ -635,12 +651,15 @@ int ColisaoBalasHeroi(Jogo *j){
 
     // Verifica colisão da bala do herói com as barreiras
     for (int i = 0; i < 5; i++) {
-        if (j->barreiras[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
-            j->barreiras[i].vida--; 
-            j->heroi.bala.ativa = 0; // Desativa a bala
-            colisão = 1;
+        if (j->barreiras[i].vida > 0 && j->heroi.bala.ativa) {
+            if (CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
+                j->barreiras[i].vida--; 
+                j->heroi.bala.ativa = 0; 
+                colisão = 1;
+            }
         }
-    }
+    } 
+            
     if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
         colisão = 1;
     }
@@ -659,13 +678,14 @@ int ColisaoBalasHeroi(Jogo *j){
 }
 
 
+
 void Pontuacao(Jogo *j,int linha){
     if (linha==0){
-        j->pontos+=30;
+        j->pontuacao+=30;
     }else if (linha==1){
-        j->pontos+=20;
+        j->pontuacao+=20;
     }else if (linha==2){
-        j->pontos+=10;
+        j->pontuacao+=10;
     }  
 }
 
