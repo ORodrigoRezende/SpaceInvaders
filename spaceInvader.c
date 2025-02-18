@@ -690,16 +690,10 @@ void Pontuacao(Jogo *j,int linha){
 }
 
 void Vencedor(Jogo *j){
-    int textWidth = MeasureText("VOCÊ PERDEU!", 50);
-    int textWidth2 = MeasureText("VOCÊ VENCEU!", 50);
+    int textWidth = MeasureText("ACABOU!", 50);
     if(j->heroi.vida == 0){
     ClearBackground(BLACK);
-    DrawText("VOCÊ PERDEU!", (GetScreenWidth() - textWidth) / 2, GetScreenHeight() / 2 - 100, 50, RED);
-    j->status = 2;
-    }
-    if(ColisaoBalasHeroi(j) == 2){
-    ClearBackground(BLACK);
-    DrawText("VOCÊ VENCEU!", (GetScreenWidth() - textWidth2)/ 2, GetScreenHeight() / 2 - 100, 50, GREEN);
+    DrawText("ACABOU!", (GetScreenWidth() - textWidth) / 2, GetScreenHeight() / 2 - 100, 50, RED);
     j->status = 2;
     }
 }
