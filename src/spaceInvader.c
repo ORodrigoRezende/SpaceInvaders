@@ -17,6 +17,11 @@
 #define MAX_TAM 100
 #define MAX_PLACARES 5
 
+typedef struct {
+    Vector2 posicao;
+    float velocidade;
+} Estrela;
+
 typedef struct Bala{
     Rectangle pos;
     Color color;
@@ -133,6 +138,10 @@ void LerPlacar(Jogo *j);
 void AtualizaPlacar(Jogo *j);
 int VerificaNaves(Jogo *j);
 void AtualizaNivel(Jogo *j);
+void DesenhaScore(Jogo *j);
+void DesenharEstrelas(Estrela estrelas[], int quantidade);
+void AtualizarEstrelas(Estrela estrelas[], int quantidade);
+void GerarEstrelas(Estrela estrelas[], int quantidade);
 
 int main(){
     InitAudioDevice();
@@ -144,12 +153,19 @@ int main(){
 
     InitWindow(jogo.larguraJanela, jogo.alturaJanela, "Space Invaders");
     SetTargetFPS(60);
+    srand(time(NULL));
     jogo.status = 0;
     CarregaImagens(&jogo);
     Music musicaJogo = LoadMusicStream("../assets/musica.mp3");
     PlayMusicStream(musicaJogo);
 
+    const int quantidadeEstrelas = 150; // Quantidade de estrelas
+    Estrela estrelas[quantidadeEstrelas];
+    GerarEstrelas(estrelas, quantidadeEstrelas);
+
     while(!WindowShouldClose()){ //status 0 Home ;status 1 Jogo ; status 2 Pós jogo
+        AtualizarEstrelas(estrelas, quantidadeEstrelas);
+        DesenharEstrelas(estrelas, quantidadeEstrelas);
         if(jogo.status==1){
             UpdateMusicStream(musicaJogo);
             AtualizaFrameDesenho(&jogo);
@@ -204,6 +220,34 @@ int VerificaNaves(Jogo *j){
         }
     }
     return 1;
+}
+
+void GerarEstrelas(Estrela estrelas[], int quantidade) {
+    for (int i = 0; i < quantidade; i++) {
+        estrelas[i].posicao = (Vector2){(float)GetRandomValue(0, GetScreenWidth()), (float)GetRandomValue(0, GetScreenHeight())};
+        estrelas[i].velocidade = (float)GetRandomValue(1, 3);
+    }
+}
+
+// Função para atualizar as estrelas
+void AtualizarEstrelas(Estrela estrelas[], int quantidade) {
+    for (int i = 0; i < quantidade; i++) {
+        estrelas[i].posicao.y += estrelas[i].velocidade; // Move a estrela para baixo
+
+        // Se a estrela sair da tela, reposiciona no topo
+        if (estrelas[i].posicao.y > GetScreenHeight()) {
+            estrelas[i].posicao.y = 0; // Reposiciona no topo
+            estrelas[i].posicao.x = (float)GetRandomValue(0, GetScreenWidth()); // Nova posição x aleatória
+            estrelas[i].velocidade = (float)GetRandomValue(1, 3); // Nova velocidade aleatória
+        }
+    }
+}
+
+// Função para desenhar as estrelas
+void DesenharEstrelas(Estrela estrelas[], int quantidade) {
+    for (int i = 0; i < quantidade; i++) {
+        DrawPixelV(estrelas[i].posicao, WHITE); // Desenha a estrela como um pixel
+    }
 }
 
 void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
@@ -364,6 +408,25 @@ void LerPlacar(Jogo *j){
     fclose(file);
 }
 
+void DesenhaScore(Jogo *j) {
+    const char *textoBase = "Pontos: "; // Texto base
+    char textoCompleto[50]; // Buffer para armazenar o texto completo
+    int tamanhoFonte = 20; // Tamanho da fonte
+    int espacoAltura = 47; // Espaço de 47px de altura
+    Color corTexto = WHITE; // Cor do texto
+
+    // Concatena o texto base com o valor da variável score
+    snprintf(textoCompleto, sizeof(textoCompleto), "%s%d", textoBase, j->pontuacao);
+
+    // Calcula a posição X para centralizar o texto horizontalmente
+    int larguraTexto = MeasureText(textoCompleto, tamanhoFonte); // Mede a largura do texto completo
+    int posX = (GetScreenWidth() - larguraTexto) / 2; // Centraliza horizontalmente
+
+    // Calcula a posição Y para centralizar o texto verticalmente no espaço de 47px
+    int posY = (espacoAltura - tamanhoFonte) / 2; // Centraliza verticalmente
+
+    DrawText(textoCompleto, posX, posY, tamanhoFonte, corTexto);
+}
 
 void DesenhaPlacar(Jogo *j){
     for (int i = 0; i < 5; i++) {
@@ -405,6 +468,7 @@ void DesenhaJogo(Jogo *j){
     DesenhaBarreiras(j);
     DesenhaBalas(j);
     DesenhaVidas(j);
+    DesenhaScore(j);
     EndDrawing();
 }
 
@@ -553,7 +617,7 @@ void AtiraBalas(Jogo *j){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
             if(j->linha[i].naves[k].status==1){
                 if(j->linha[i].naves[k].bala.ativa == 0 && GetTime()-j->linha[i].naves[k].bala.tempo > 3){
-                    if (rand() % 100 < (j->nivel)) {
+                    if (rand() % 200 < (j->nivel)) {
                     j->linha[i].naves[k].bala.pos = (Rectangle){j->linha[i].naves[k].pos.x+j->linha[i].naves[k].pos.width/2, j->linha[i].naves[k].pos.y+j->linha[i].naves[k].pos.height/2, 
                     LARGURA_BALA, ALTURA_BALA};
                     j->linha[i].naves[k].bala.ativa = 1;
@@ -695,12 +759,14 @@ int ColisaoBalasHeroi(Jogo *j){
 
 void Pontuacao(Jogo *j,int linha){
     if (linha==0){
-        j->pontuacao+=30;
+        j->pontuacao+=40;
     }else if (linha==1){
-        j->pontuacao+=20;
+        j->pontuacao+=30;
     }else if (linha==2){
+        j->pontuacao+=20;
+    }else if (linha==3){
         j->pontuacao+=10;
-    }  
+    }   
 }
 
 void VerificaVidaHeroi(Jogo *j){
