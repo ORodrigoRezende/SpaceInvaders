@@ -85,6 +85,9 @@ typedef struct Assets{
     Texture2D coracao;
     Texture2D naveRoxa;
     Texture2D naveAzul;
+    Texture2D naveVerdeClara;
+    Texture2D TiroHeroi;
+    Texture2D TiroNave;
     Sound tiro;
 }Assets;
 
@@ -183,7 +186,7 @@ int main(){
             
         }else{
             DrawHome(&jogo);
-            if (IsKeyPressed(KEY_ENTER)){
+            if (IsKeyPressed(KEY_ENTER) && strlen(jogo.player)>0){
                 jogo.status = 1;
                 AtualizaStatusJogo(&jogo);
             }
@@ -269,6 +272,7 @@ void IniciaJogo(Jogo *j){
     j->pontuacao = 0;
     j->nivel = 1;
     
+    
     IniciaGameplay(j);
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //borda encima
     j->bordas[1].pos = (Rectangle){0, ALTURA_JANELA-10, LARGURA_JANELA, 10}; //borda embaixo
@@ -344,7 +348,7 @@ void DrawHome(Jogo *j){ //Draw the game's home page
     int key = GetCharPressed();
     while (key > 0) {
         int len = strlen(j->player);
-        if (len < sizeof(j->player) - 1 && key >= 32 && key <= 125) { 
+        if (len < 18 && key >= 32 && key <= 125) { 
             j->player[len] = (char)key;
             j->player[len + 1] = '\0';
         }
@@ -355,14 +359,22 @@ void DrawHome(Jogo *j){ //Draw the game's home page
     if (IsKeyPressed(KEY_BACKSPACE) && strlen(j->player) > 0) {
         j->player[strlen(j->player) - 1] = '\0';
     }
+    
+    
 
     // Pressionar Enter para confirmar o nome
-    if (IsKeyPressed(KEY_ENTER) && strlen(j->player) > 0) {
-        j->playerEmEdicao = false;
-        j->status = 1; // Inicia o jogo
-    }
+    if (IsKeyPressed(KEY_ENTER)) {
+        int tamanho = strlen(j->player);
 
-    //DesenhaPlacar(j);
+        bool nomeValido = false;
+        for (int i = 0; i < tamanho; i++) {
+            if ((j->player[i] >= 'a' && j->player[i] <= 'z') || (j->player[i] >= 'A' && j->player[i] <= 'Z')) {
+                nomeValido = true;
+                j->playerEmEdicao = false;
+                j->status = 1;
+            }
+        }
+    }
     EndDrawing();
 }
 
@@ -499,6 +511,9 @@ void AtualizaHeroiPos(Jogo *j){
 void CarregaImagens(Jogo *j){
     j->assets.naveHeroi = LoadTexture("../assets/naveHeroi.png");
     j->assets.naveVerde = LoadTexture("../assets/GreenAnimation.png");
+    j->assets.TiroNave = LoadTexture("../assets/TiroNave.png");
+    j->assets.TiroHeroi= LoadTexture("../assets/TiroHeroi.png");
+    j->assets.naveVerdeClara = LoadTexture("../assets/LightGreenAnimation.png");
     j->assets.naveRosa = LoadTexture("../assets/PinkAnimation.png");
     j->assets.naveAzulClaro = LoadTexture("../assets/LightBlueAnimation.png");
     j->assets.naveAzul = LoadTexture("../assets/BlueAnimation.png");
@@ -510,7 +525,10 @@ void CarregaImagens(Jogo *j){
 void DescarregaImagens(Jogo *j){
     UnloadTexture(j->assets.naveHeroi);
     UnloadTexture(j->assets.naveVerde);
+    UnloadTexture(j->assets.TiroNave);
+    UnloadTexture(j->assets.naveVerdeClara);
     UnloadTexture(j->assets.naveAzulClaro);
+    UnloadTexture(j->assets.TiroHeroi);
     UnloadTexture(j->assets.naveRosa);
     UnloadTexture(j->assets.naveAzul);
     UnloadTexture(j->assets.naveRoxa);
@@ -552,7 +570,7 @@ void DesenhaNaves(Jogo *j){
                 // Mantém o Frame 2 por duracaoFrameFinal segundos
                 if (GetTime() - j->linha[i].naves[k].tempoUltimaTroca >= duracaoFrameFinal) {
                     j->linha[i].naves[k].status = 0; // Define o status como 0 após duracaoFrameFinal segundos
-                    j->linha[i].naves[k].frame.x = 0; // Volta ao Frame 0
+                    j->linha[i].naves[k].frame.x = 0; // Volta ao Frame 0F
                 }
             }
             Rectangle frameRecNave = {j->linha[i].naves[k].frame.x * tamanhoFrame.x,j->linha[i].naves[k].frame.y * tamanhoFrame.y,tamanhoFrame.x,tamanhoFrame.y};
@@ -568,15 +586,11 @@ void DesenhaNaves(Jogo *j){
                 }else if(i==4){
                     DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
                 }else if(i==5){
-                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
-                }else if(i==6){
-                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
-                }else if(i==7){
-                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
-                }
+                    DrawTexturePro(j->assets.naveVerdeClara,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
             }
         }
     }
+}
 }
 
 void LerPlacar(Jogo *j) {
@@ -634,14 +648,17 @@ void DesenhaBalas(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
                 if(j->linha[i].naves[k].bala.ativa){
-                    DrawRectangleRec(j->linha[i].naves[k].bala.pos, GREEN);
+                    DrawTexture(j->assets.TiroNave, j->linha[i].naves[k].bala.pos.x, j->linha[i].naves[k].bala.pos.y, WHITE);
                 }
         }
     }
 }
 
 void DesenhaBalasHeroi(Jogo *j){
-    DrawRectangleRec(j->heroi.bala.pos, BLUE);
+                if(j->heroi.bala.ativa){
+                    DrawTexture(j->assets.TiroHeroi, j->heroi.bala.pos.x, j->heroi.bala.pos.y, WHITE);
+                    
+                }
 }
 
 void AtiraBalas(Jogo *j){
@@ -649,7 +666,7 @@ void AtiraBalas(Jogo *j){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
             if(j->linha[i].naves[k].status==1){
                 if(j->linha[i].naves[k].bala.ativa == 0 && GetTime()-j->linha[i].naves[k].bala.tempo > 3){
-                    if (rand() % 200 < (j->nivel)) {
+                    if (rand() % 400 < (j->nivel)) {
                     j->linha[i].naves[k].bala.pos = (Rectangle){j->linha[i].naves[k].pos.x+j->linha[i].naves[k].pos.width/2, j->linha[i].naves[k].pos.y+j->linha[i].naves[k].pos.height/2, 
                     LARGURA_BALA, ALTURA_BALA};
                     j->linha[i].naves[k].bala.ativa = 1;

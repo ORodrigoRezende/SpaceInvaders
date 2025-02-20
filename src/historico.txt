@@ -1,5 +1,5 @@
-RodrigoRezedne,30
-Rodrigo,20
-Rodrigo,21
-Rodrigo,421
-as ads  ddasd,60
+Rodrigo,400
+Rodrigo e Antonio,40
+Rodrigo,90
+Antonio,0
+Rodrigo,50
