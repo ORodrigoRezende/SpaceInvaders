@@ -79,8 +79,12 @@ typedef struct {
 typedef struct Assets{
     Texture2D naveHeroi;
     Texture2D naveVerde;
+    Texture2D naveAzulClaro;
+    Texture2D naveRosa;
     Texture2D barreira;
     Texture2D coracao;
+    Texture2D naveRoxa;
+    Texture2D naveAzul;
     Sound tiro;
 }Assets;
 
@@ -100,6 +104,7 @@ typedef struct Jogo{
     char player[50];
     int pontuacao;
     bool playerEmEdicao;
+    int statusPlacar;
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -155,6 +160,7 @@ int main(){
     SetTargetFPS(60);
     srand(time(NULL));
     jogo.status = 0;
+    jogo.statusPlacar=0;
     CarregaImagens(&jogo);
     Music musicaJogo = LoadMusicStream("../assets/musica.mp3");
     PlayMusicStream(musicaJogo);
@@ -174,6 +180,7 @@ int main(){
             }
         }else if(jogo.status==2){
             DesenhaJogoPos(&jogo);
+            
         }else{
             DrawHome(&jogo);
             if (IsKeyPressed(KEY_ENTER)){
@@ -252,47 +259,10 @@ void DesenharEstrelas(Estrela estrelas[], int quantidade) {
 
 void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
     if (j->status == 1) {
-        AtualizaPlacar(j);
         IniciaJogo(j);  
     }
 }
 
-void AtualizaPlacar(Jogo *j) {
-    /*
-    int count = 0;
-
-    // Lê os placares do arquivo
-    FILE *file = fopen("../historico.txt", "r");
-    if (file != NULL) {
-        while (count < MAX_PLACARES && fscanf(file, "%19s %d", placares[count].player, &placares[count].pontuacao) == 2) {
-            count++;
-        }
-        fclose(file);
-    }
-
-    // Adiciona o novo placar ao final da lista
-    if (count < MAX_PLACARES) {
-        strcpy(placares[count].player, j->player);
-        placares[count].pontuacao = j->pontuacao;
-        count++;
-    } else {
-        // Se já houver 5 registros, remove o mais antigo (o primeiro) e adiciona no final
-        for (int i = 1; i < MAX_PLACARES; i++) {
-            placares[i - 1] = placares[i];
-        }
-        strcpy(j->placar[MAX_PLACARES - 1].player, j->player);
-        j->placar[MAX_PLACARES - 1].pontuacao = j->pontuacao;
-    }
-
-    // Salva os placares no arquivo
-    file = fopen("../historico.txt", "w");
-    if (file != NULL) {
-        for (int i = 0; i < count; i++) {
-            fprintf(file, "%s %d\n", j->placar[i].player, j->placar[i].pontuacao);
-        }
-        fclose(file);
-    }*/
-}
 
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
@@ -392,20 +362,8 @@ void DrawHome(Jogo *j){ //Draw the game's home page
         j->status = 1; // Inicia o jogo
     }
 
-    DesenhaPlacar(j);
+    //DesenhaPlacar(j);
     EndDrawing();
-}
-
-void LerPlacar(Jogo *j){
-    FILE *file = fopen("../historico.txt", "r");
-    if (file == NULL) return;
-
-    int i = 0;
-    while (i < MAX_PLACARES && fscanf(file, "%19s %d", j->placar[i].player, &j->placar[i].pontuacao) == 2) {
-        i++;
-    }
-
-    fclose(file);
 }
 
 void DesenhaScore(Jogo *j) {
@@ -429,7 +387,7 @@ void DesenhaScore(Jogo *j) {
 }
 
 void DesenhaPlacar(Jogo *j){
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < MAX_PLACARES; i++) {
     char pontos[60];
     sprintf(pontos, "%d - %s : %d", i + 1, j->placar[i].player,j->placar[i].pontuacao);
     DrawText(pontos, 250, 425 + i * 30, 20, WHITE);
@@ -541,6 +499,10 @@ void AtualizaHeroiPos(Jogo *j){
 void CarregaImagens(Jogo *j){
     j->assets.naveHeroi = LoadTexture("../assets/naveHeroi.png");
     j->assets.naveVerde = LoadTexture("../assets/GreenAnimation.png");
+    j->assets.naveRosa = LoadTexture("../assets/PinkAnimation.png");
+    j->assets.naveAzulClaro = LoadTexture("../assets/LightBlueAnimation.png");
+    j->assets.naveAzul = LoadTexture("../assets/BlueAnimation.png");
+    j->assets.naveRoxa = LoadTexture("../assets/PurpleAnimation.png");
     j->assets.barreira = LoadTexture("../assets/barreira.png");
     j->assets.coracao = LoadTexture("../assets/heart.png");
 }
@@ -548,6 +510,10 @@ void CarregaImagens(Jogo *j){
 void DescarregaImagens(Jogo *j){
     UnloadTexture(j->assets.naveHeroi);
     UnloadTexture(j->assets.naveVerde);
+    UnloadTexture(j->assets.naveAzulClaro);
+    UnloadTexture(j->assets.naveRosa);
+    UnloadTexture(j->assets.naveAzul);
+    UnloadTexture(j->assets.naveRoxa);
     UnloadTexture(j->assets.barreira);
     UnloadTexture(j->assets.coracao);
 }
@@ -556,27 +522,93 @@ void DesenhaNaves(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++){ 
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
             Vector2 tamanhoFrame = {32, 32};
-    
-            const float duracaoTrocaFrame = 0.35f; // Duração da troca de frame (em segundos)
+            const float duracaoTrocaFrame = 1.0f; // Duração da troca de frame (em segundos)
+            const float duracaoFrameFinal = 0.35f; // Duração do Frame 2 (1 segundo)
 
-            if (j->linha[i].naves[k].bala.ativa == 1) {
-                if (!j->linha[i].naves[k].trocouFrame) {
-                    j->linha[i].naves[k].frame.x = 1; 
-                    j->linha[i].naves[k].tempoUltimaTroca = GetTime(); 
-                    j->linha[i].naves[k].trocouFrame = true;
+            if (j->linha[i].naves[k].status == 1) {
+                // Se a bala estiver ativa, muda para o Frame 1
+                if (j->linha[i].naves[k].bala.ativa == 1) {
+                    if (j->linha[i].naves[k].frame.x != 1) { // Se ainda não estiver no Frame 1
+                        j->linha[i].naves[k].frame.x = 1; // Muda para o Frame 1
+                        j->linha[i].naves[k].tempoUltimaTroca = GetTime(); // Atualiza o tempo da última troca
+                    }
+
+                    // Mantém o Frame 1 por duracaoTrocaFrame segundos
+                    if (GetTime() - j->linha[i].naves[k].tempoUltimaTroca >= duracaoTrocaFrame) {
+                        j->linha[i].naves[k].frame.x = 0; // Volta ao Frame 0 após duracaoTrocaFrame segundos
+                    }
+                } else {
+                    j->linha[i].naves[k].frame.x = 0; // Volta ao Frame 0 se a bala não estiver ativa
                 }
-            }else{
-                j->linha[i].naves[k].trocouFrame = false;
             }
+            // Quando o status da nave for 2, inicia a animação do Frame 2
+            else if (j->linha[i].naves[k].status == 2) {
+                // Se ainda não estiver no Frame 2, muda para ele
+                if (j->linha[i].naves[k].frame.x != 2) {
+                    j->linha[i].naves[k].frame.x = 2; // Muda para o Frame 2
+                    j->linha[i].naves[k].tempoUltimaTroca = GetTime(); // Atualiza o tempo da última troca
+                }
 
-            if (j->linha[i].naves[k].frame.x == 1 && GetTime() - j->linha[i].naves[k].tempoUltimaTroca >= duracaoTrocaFrame) {
-                j->linha[i].naves[k].frame.x = 0; 
+                // Mantém o Frame 2 por duracaoFrameFinal segundos
+                if (GetTime() - j->linha[i].naves[k].tempoUltimaTroca >= duracaoFrameFinal) {
+                    j->linha[i].naves[k].status = 0; // Define o status como 0 após duracaoFrameFinal segundos
+                    j->linha[i].naves[k].frame.x = 0; // Volta ao Frame 0
+                }
             }
             Rectangle frameRecNave = {j->linha[i].naves[k].frame.x * tamanhoFrame.x,j->linha[i].naves[k].frame.y * tamanhoFrame.y,tamanhoFrame.x,tamanhoFrame.y};
-            if (j->linha[i].naves[k].status == 1) {
-                DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+            if (j->linha[i].naves[k].status >= 1) {
+                if(i==0){
+                    DrawTexturePro(j->assets.naveRoxa,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==1){
+                    DrawTexturePro(j->assets.naveAzul,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==2){
+                    DrawTexturePro(j->assets.naveAzulClaro,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==3){
+                    DrawTexturePro(j->assets.naveRosa,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==4){
+                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==5){
+                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==6){
+                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }else if(i==7){
+                    DrawTexturePro(j->assets.naveVerde,frameRecNave,(Rectangle){j->linha[i].naves[k].pos.x, j->linha[i].naves[k].pos.y, 32, 32},(Vector2){0, 0},0.0f,WHITE);
+                }
             }
         }
+    }
+}
+
+void LerPlacar(Jogo *j) {
+    FILE *file = fopen("historico.txt", "r");
+    int count = 0;
+    char buf[MAX_TAM];
+
+    if (file != NULL) {
+        fgets(buf,MAX_TAM,file);
+        while (count<MAX_PLACARES){
+        strcpy(j->placar[count].player,strtok(buf,","));
+        j->placar[count].pontuacao = atoi(strtok(NULL,","));
+        fgets(buf,MAX_TAM,file);
+        count++;
+    }
+        fclose(file);
+    }
+}
+void AtualizaPlacar(Jogo *j) {
+        for (int i = MAX_PLACARES; i > 0;i--){
+            j->placar[i] = j->placar[i-1];
+        }
+        strcpy(j->placar[0].player,j->player);
+        j->placar[0].pontuacao = j->pontuacao;
+    
+
+    FILE *file = fopen("historico.txt", "w");
+    if (file != NULL) {
+        for (int i = 0; i < MAX_PLACARES; i++) {
+            fprintf(file, "%s,%d\n", j->placar[i].player, j->placar[i].pontuacao);
+        }
+        fclose(file);
     }
 }
 
@@ -601,7 +633,7 @@ void DesenhaBordas(Jogo *j){
 void DesenhaBalas(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++){
         for (int k = 0; k < NUM_NAVES_LINHA; k++){
-                if(j->linha[i].naves[k].bala.ativa==1){
+                if(j->linha[i].naves[k].bala.ativa){
                     DrawRectangleRec(j->linha[i].naves[k].bala.pos, GREEN);
                 }
         }
@@ -745,7 +777,7 @@ int ColisaoBalasHeroi(Jogo *j){
     for (int i = 0; i < NUM_LINHA; i++) {
         for (int k = 0; k < NUM_NAVES_LINHA; k++) {
             if (j->linha[i].naves[k].status && CheckCollisionRecs(j->heroi.bala.pos, j->linha[i].naves[k].pos) && j->heroi.bala.ativa) {
-                j->linha[i].naves[k].status = 0;
+                j->linha[i].naves[k].status = 2;
                 Pontuacao(j,i);
                 j->heroi.bala.ativa = 0; 
                 colisão = 1;
@@ -771,6 +803,10 @@ void Pontuacao(Jogo *j,int linha){
 
 void VerificaVidaHeroi(Jogo *j){
     if(j->heroi.vida == 0){
-    j->status = 2;
+        j->statusPlacar=1;
+        if(j->statusPlacar==1 && j->status==1){
+            AtualizaPlacar(j);
+        }
+        j->status = 2;
     }
 }
