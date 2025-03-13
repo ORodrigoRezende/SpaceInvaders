@@ -35,17 +35,20 @@ typedef struct Nave{
     Rectangle pos;
     Color color;
     Bala bala;
-    int velocidade;
+    float velocidade;
     int status;
     Vector2 frame;
     float tempoUltimaTroca;
     bool trocouFrame;
+    Sound explosion;
+    
 }Nave;
 
 typedef struct Barreiras {
     Rectangle pos;
     Color color;
     int vida;
+    Sound colisao;
 }Barreiras;
 
 typedef struct{
@@ -65,6 +68,7 @@ typedef struct Heroi{
     int velocidade;
     Bala bala;
     int vida;
+    Sound danoNave;
 }Heroi;
 
 typedef struct Bordas{
@@ -89,6 +93,9 @@ typedef struct Assets{
     Texture2D TiroHeroi;
     Texture2D TiroNave;
     Sound tiro;
+    Sound danoNave;
+    Sound explosion;
+    Sound colisao;
 }Assets;
 
 typedef struct Jogo{
@@ -108,6 +115,8 @@ typedef struct Jogo{
     int pontuacao;
     bool playerEmEdicao;
     int statusPlacar;
+    int tempoTelaVermelha;
+    int statusTelaVermelha;
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -150,6 +159,8 @@ void DesenhaScore(Jogo *j);
 void DesenharEstrelas(Estrela estrelas[], int quantidade);
 void AtualizarEstrelas(Estrela estrelas[], int quantidade);
 void GerarEstrelas(Estrela estrelas[], int quantidade);
+void EfeitoVermelho(Jogo *j);
+void VereficaPosNaves(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -162,6 +173,7 @@ int main(){
     InitWindow(jogo.larguraJanela, jogo.alturaJanela, "Space Invaders");
     SetTargetFPS(60);
     srand(time(NULL));
+    jogo.player[0] = '\0';
     jogo.status = 0;
     jogo.statusPlacar=0;
     CarregaImagens(&jogo);
@@ -183,7 +195,6 @@ int main(){
             }
         }else if(jogo.status==2){
             DesenhaJogoPos(&jogo);
-            
         }else{
             DrawHome(&jogo);
             if (IsKeyPressed(KEY_ENTER) && strlen(jogo.player)>0){
@@ -192,23 +203,22 @@ int main(){
             }
         }
     }
-    
     UnloadMusicStream(musicaJogo);
     DescarregaImagens(&jogo);
     CloseWindow(); 
     return 0;
-   
+
 }
 
 void AtualizaNivel(Jogo *j){
     if (VerificaNaves(j)==1){
-        j->nivel++;
+        j->nivel+=0.5;
         for (int i = 0; i < NUM_LINHA; i++) { //Cria NAVES
             for (int k = 0; k < NUM_NAVES_LINHA; k++){
                 j->linha[i].naves[k].pos = (Rectangle) {OFFSET_X + k * 45, i*45 + 47, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
                 j->linha[i].naves[k].color = RED;
                 j->linha[i].naves[k].bala.ativa = 0;
-                j->linha[i].naves[k].bala.velocidade = 5;
+                j->linha[i].naves[k].bala.velocidade = 6;
                 j->linha[i].naves[k].status = 1;
                 j->linha[i].naves[k].velocidade = 1*j->nivel;
                 j->linha[i].naves[k].frame = (Vector2){0, 0}; 
@@ -270,8 +280,9 @@ void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
     j->pontuacao = 0;
-    j->nivel = 1;
-    
+    j->nivel = 0.5;
+    j->statusTelaVermelha=0;
+    j->tempoTelaVermelha = 0;
     
     IniciaGameplay(j);
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //borda encima
@@ -295,13 +306,14 @@ void IniciaNaves(Jogo *j){
             j->linha[i].naves[k].color = RED;
             j->linha[i].naves[k].bala.ativa = 0;
             j->linha[i].naves[k].bala.tempo = GetTime();
-            j->linha[i].naves[k].bala.velocidade = 5;
+            j->linha[i].naves[k].bala.velocidade = 6;
             j->linha[i].naves[k].bala.tiro = LoadSound("../assets/shoot.wav");
             j->linha[i].naves[k].status = 1;
             j->linha[i].naves[k].velocidade = 1*j->nivel;
             j->linha[i].naves[k].frame = (Vector2){0, 0}; 
             j->linha[i].naves[k].tempoUltimaTroca = 0.0f; 
             j->linha[i].naves[k].trocouFrame = false;
+            j->linha[i].naves[k].explosion = LoadSound("../assets/explosionSound.mp3");
         }
         j->linha[i].direcao = 1;
         j->linha[i].status = 1;
@@ -318,11 +330,12 @@ void IniciaCoracao(Jogo *j){
 void IniciaHeroi(Jogo *j){
     j->heroi.pos = (Rectangle) {LARGURA_JANELA/2 - STD_SIZE_X/2, ALTURA_JANELA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     j->heroi.color = BLUE;
-    j->heroi.velocidade = 3;
+    j->heroi.velocidade = 5;
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
-    j->heroi.bala.velocidade = 5;
+    j->heroi.bala.velocidade = 6;
     j->heroi.bala.tiro = LoadSound("../assets/shoot.wav");
+    j->heroi.danoNave = LoadSound("../assets/damageSound.mp3");
     j->heroi.vida = 3;
 }
 
@@ -331,6 +344,7 @@ void IniciaBarreira(Jogo *j){
         j->barreiras[i].pos = (Rectangle){80 + (i * 150), 350, 25, 25};
         j->barreiras[i].color = GRAY;
         j->barreiras[i].vida = 5;
+        j->barreiras[i].colisao = LoadSound("../assets/impactBarrierSound.mp3");
     }
 }
 
@@ -427,15 +441,17 @@ void AtualizaJogo(Jogo *j){
     AtiraBalasHeroi (j);
     AtualizaNivel(j);
     VerificaVidaHeroi(j);
+    EfeitoVermelho(j);
+
 }
  
 void DesenhaJogo(Jogo *j){
     BeginDrawing();
     ClearBackground(BLACK);
+    DesenhaBarreiras(j);
     DesenhaNaves(j);
     DesenhaHeroi(j);
     DesenhaBordas(j);
-    DesenhaBarreiras(j);
     DesenhaBalas(j);
     DesenhaVidas(j);
     DesenhaScore(j);
@@ -463,8 +479,6 @@ void DesenhaJogoPos(Jogo *j){
     if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         j->status = 0;
         j->heroi.vida = 3;
-    }else{
-        VerificaVidaHeroi(j);
     }
 
     EndDrawing();
@@ -486,6 +500,7 @@ void AtualizaNavePos(Jogo *j){
                 j->linha[i].naves[k].pos.y += 32;  // Move TODAS as naves para baixo
             }
         }
+        VereficaPosNaves(j);
     }
 
     // Movimenta todas as naves na direção correta
@@ -734,6 +749,8 @@ int ColisaoBalas(Jogo *j) {
                         if (j->barreiras[b].vida > 0 && CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[b].pos)) {
                             j->barreiras[b].vida--; 
                             j->linha[i].naves[k].bala.ativa = 0; 
+                            PlaySound(j->barreiras[b].colisao);
+                            
                             colidiu = 1; 
                             break;
                         }
@@ -748,7 +765,9 @@ int ColisaoBalas(Jogo *j) {
                     // Verifica colisão da bala da nave com o herói
                     if (j->linha[i].naves[k].bala.ativa && CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos)) {
                         j->heroi.vida--; 
+                        j->statusTelaVermelha = 1;
                         j->linha[i].naves[k].bala.ativa = 0; 
+                        PlaySound(j->heroi.danoNave);
                         colidiu = 1;
                     }
                 }
@@ -766,7 +785,6 @@ int ColisaoBalas(Jogo *j) {
             }
         }
     }
-
     return colidiu;
 }
 
@@ -782,6 +800,7 @@ int ColisaoBalasHeroi(Jogo *j){
             if (CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
                 j->barreiras[i].vida--; 
                 j->heroi.bala.ativa = 0; 
+                PlaySound(j->barreiras[i].colisao);
                 colisão = 1;
             }
         }
@@ -798,6 +817,7 @@ int ColisaoBalasHeroi(Jogo *j){
                 Pontuacao(j,i);
                 j->heroi.bala.ativa = 0; 
                 colisão = 1;
+                PlaySound(j->linha[i].naves[k].explosion);
             }
         }
     }
@@ -818,12 +838,43 @@ void Pontuacao(Jogo *j,int linha){
     }   
 }
 
+void VereficaPosNaves(Jogo *j){
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].status == 1) {
+                if (j->linha[i].naves[k].pos.y >= j->heroi.pos.y-32) { 
+                    j->heroi.vida = 0;
+                    return;
+                }
+            }
+        }
+    }
+}
+
 void VerificaVidaHeroi(Jogo *j){
     if(j->heroi.vida == 0){
-        j->statusPlacar=1;
-        if(j->statusPlacar==1 && j->status==1){
-            AtualizaPlacar(j);
+            if(j->status!=2){
+                j->statusPlacar=1;
+                if(j->statusPlacar==1 && j->status==1){
+                    AtualizaPlacar(j);
+                }
+                j->status = 2;
         }
-        j->status = 2;
+    }
+}
+
+void EfeitoVermelho(Jogo *j) {
+    if (j->statusTelaVermelha) {
+        if (j->tempoTelaVermelha == 0) {
+            j->tempoTelaVermelha = GetTime();
+        }
+
+        double tempoDecorrido = GetTime() - j->tempoTelaVermelha;
+        if (tempoDecorrido < 0.8) {
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.5f));
+        } else {
+            j->tempoTelaVermelha = 0;
+            j->statusTelaVermelha = 0;
+        }
     }
 }

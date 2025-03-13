@@ -1,5 +1,5 @@
-Rodrigo,400
-Rodrigo e Antonio,40
-Rodrigo,90
-Antonio,0
-Rodrigo,50
+Rodrigo,2730
+Rodrigo,2100
+Rodrigo,1650
+ROdrigo,130
+Rodrigoda ,60
