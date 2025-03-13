@@ -40,6 +40,7 @@ typedef struct Nave{
     Vector2 frame;
     float tempoUltimaTroca;
     bool trocouFrame;
+    Sound explosion;
     
 }Nave;
 
@@ -47,6 +48,7 @@ typedef struct Barreiras {
     Rectangle pos;
     Color color;
     int vida;
+    Sound colisao;
 }Barreiras;
 
 typedef struct{
@@ -92,6 +94,8 @@ typedef struct Assets{
     Texture2D TiroNave;
     Sound tiro;
     Sound danoNave;
+    Sound explosion;
+    Sound colisao;
 }Assets;
 
 typedef struct Jogo{
@@ -156,6 +160,7 @@ void DesenharEstrelas(Estrela estrelas[], int quantidade);
 void AtualizarEstrelas(Estrela estrelas[], int quantidade);
 void GerarEstrelas(Estrela estrelas[], int quantidade);
 void EfeitoVermelho(Jogo *j);
+void VereficaPosNaves(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -189,7 +194,6 @@ int main(){
             }
         }else if(jogo.status==2){
             DesenhaJogoPos(&jogo);
-            
         }else{
             DrawHome(&jogo);
             if (IsKeyPressed(KEY_ENTER) && strlen(jogo.player)>0){
@@ -198,12 +202,11 @@ int main(){
             }
         }
     }
-    
     UnloadMusicStream(musicaJogo);
     DescarregaImagens(&jogo);
     CloseWindow(); 
     return 0;
-   
+
 }
 
 void AtualizaNivel(Jogo *j){
@@ -309,6 +312,7 @@ void IniciaNaves(Jogo *j){
             j->linha[i].naves[k].frame = (Vector2){0, 0}; 
             j->linha[i].naves[k].tempoUltimaTroca = 0.0f; 
             j->linha[i].naves[k].trocouFrame = false;
+            j->linha[i].naves[k].explosion = LoadSound("../assets/explosionSound.mp3");
         }
         j->linha[i].direcao = 1;
         j->linha[i].status = 1;
@@ -339,6 +343,7 @@ void IniciaBarreira(Jogo *j){
         j->barreiras[i].pos = (Rectangle){80 + (i * 150), 350, 25, 25};
         j->barreiras[i].color = GRAY;
         j->barreiras[i].vida = 5;
+        j->barreiras[i].colisao = LoadSound("../assets/impactBarrierSound.mp3");
     }
 }
 
@@ -442,10 +447,10 @@ void AtualizaJogo(Jogo *j){
 void DesenhaJogo(Jogo *j){
     BeginDrawing();
     ClearBackground(BLACK);
+    DesenhaBarreiras(j);
     DesenhaNaves(j);
     DesenhaHeroi(j);
     DesenhaBordas(j);
-    DesenhaBarreiras(j);
     DesenhaBalas(j);
     DesenhaVidas(j);
     DesenhaScore(j);
@@ -473,8 +478,6 @@ void DesenhaJogoPos(Jogo *j){
     if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         j->status = 0;
         j->heroi.vida = 3;
-    }else{
-        VerificaVidaHeroi(j);
     }
 
     EndDrawing();
@@ -496,6 +499,7 @@ void AtualizaNavePos(Jogo *j){
                 j->linha[i].naves[k].pos.y += 32;  // Move TODAS as naves para baixo
             }
         }
+        VereficaPosNaves(j);
     }
 
     // Movimenta todas as naves na direção correta
@@ -744,6 +748,7 @@ int ColisaoBalas(Jogo *j) {
                         if (j->barreiras[b].vida > 0 && CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[b].pos)) {
                             j->barreiras[b].vida--; 
                             j->linha[i].naves[k].bala.ativa = 0; 
+                            PlaySound(j->barreiras[b].colisao);
                             
                             colidiu = 1; 
                             break;
@@ -794,6 +799,7 @@ int ColisaoBalasHeroi(Jogo *j){
             if (CheckCollisionRecs(j->heroi.bala.pos, j->barreiras[i].pos)) {
                 j->barreiras[i].vida--; 
                 j->heroi.bala.ativa = 0; 
+                PlaySound(j->barreiras[i].colisao);
                 colisão = 1;
             }
         }
@@ -810,6 +816,7 @@ int ColisaoBalasHeroi(Jogo *j){
                 Pontuacao(j,i);
                 j->heroi.bala.ativa = 0; 
                 colisão = 1;
+                PlaySound(j->linha[i].naves[k].explosion);
             }
         }
     }
@@ -830,15 +837,28 @@ void Pontuacao(Jogo *j,int linha){
     }   
 }
 
-
+void VereficaPosNaves(Jogo *j){
+    for (int i = 0; i < NUM_LINHA; i++) {
+        for (int k = 0; k < NUM_NAVES_LINHA; k++) {
+            if (j->linha[i].naves[k].status == 1) {
+                if (j->linha[i].naves[k].pos.y >= j->heroi.pos.y-32) { 
+                    j->heroi.vida = 0;
+                    return;
+                }
+            }
+        }
+    }
+}
 
 void VerificaVidaHeroi(Jogo *j){
     if(j->heroi.vida == 0){
-        j->statusPlacar=1;
-        if(j->statusPlacar==1 && j->status==1){
-            AtualizaPlacar(j);
+            if(j->status!=2){
+                j->statusPlacar=1;
+                if(j->statusPlacar==1 && j->status==1){
+                    AtualizaPlacar(j);
+                }
+                j->status = 2;
         }
-        j->status = 2;
     }
 }
 
