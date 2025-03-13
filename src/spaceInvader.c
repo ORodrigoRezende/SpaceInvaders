@@ -40,6 +40,7 @@ typedef struct Nave{
     Vector2 frame;
     float tempoUltimaTroca;
     bool trocouFrame;
+    
 }Nave;
 
 typedef struct Barreiras {
@@ -65,6 +66,7 @@ typedef struct Heroi{
     int velocidade;
     Bala bala;
     int vida;
+    Sound danoNave;
 }Heroi;
 
 typedef struct Bordas{
@@ -89,6 +91,7 @@ typedef struct Assets{
     Texture2D TiroHeroi;
     Texture2D TiroNave;
     Sound tiro;
+    Sound danoNave;
 }Assets;
 
 typedef struct Jogo{
@@ -108,6 +111,8 @@ typedef struct Jogo{
     int pontuacao;
     bool playerEmEdicao;
     int statusPlacar;
+    int tempoTelaVermelha;
+    int statusTelaVermelha;
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -150,6 +155,7 @@ void DesenhaScore(Jogo *j);
 void DesenharEstrelas(Estrela estrelas[], int quantidade);
 void AtualizarEstrelas(Estrela estrelas[], int quantidade);
 void GerarEstrelas(Estrela estrelas[], int quantidade);
+void EfeitoVermelho(Jogo *j);
 
 int main(){
     InitAudioDevice();
@@ -208,7 +214,7 @@ void AtualizaNivel(Jogo *j){
                 j->linha[i].naves[k].pos = (Rectangle) {OFFSET_X + k * 45, i*45 + 47, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
                 j->linha[i].naves[k].color = RED;
                 j->linha[i].naves[k].bala.ativa = 0;
-                j->linha[i].naves[k].bala.velocidade = 5;
+                j->linha[i].naves[k].bala.velocidade = 6;
                 j->linha[i].naves[k].status = 1;
                 j->linha[i].naves[k].velocidade = 1*j->nivel;
                 j->linha[i].naves[k].frame = (Vector2){0, 0}; 
@@ -271,7 +277,8 @@ void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
     j->pontuacao = 0;
     j->nivel = 1;
-    
+    j->statusTelaVermelha=0;
+    j->tempoTelaVermelha = 0;
     
     IniciaGameplay(j);
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //borda encima
@@ -295,7 +302,7 @@ void IniciaNaves(Jogo *j){
             j->linha[i].naves[k].color = RED;
             j->linha[i].naves[k].bala.ativa = 0;
             j->linha[i].naves[k].bala.tempo = GetTime();
-            j->linha[i].naves[k].bala.velocidade = 5;
+            j->linha[i].naves[k].bala.velocidade = 6;
             j->linha[i].naves[k].bala.tiro = LoadSound("../assets/shoot.wav");
             j->linha[i].naves[k].status = 1;
             j->linha[i].naves[k].velocidade = 1*j->nivel;
@@ -321,8 +328,9 @@ void IniciaHeroi(Jogo *j){
     j->heroi.velocidade = 3;
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
-    j->heroi.bala.velocidade = 5;
+    j->heroi.bala.velocidade = 6;
     j->heroi.bala.tiro = LoadSound("../assets/shoot.wav");
+    j->heroi.danoNave = LoadSound("../assets/damageSound.mp3");
     j->heroi.vida = 3;
 }
 
@@ -427,6 +435,8 @@ void AtualizaJogo(Jogo *j){
     AtiraBalasHeroi (j);
     AtualizaNivel(j);
     VerificaVidaHeroi(j);
+    EfeitoVermelho(j);
+
 }
  
 void DesenhaJogo(Jogo *j){
@@ -734,6 +744,7 @@ int ColisaoBalas(Jogo *j) {
                         if (j->barreiras[b].vida > 0 && CheckCollisionRecs(j->linha[i].naves[k].bala.pos, j->barreiras[b].pos)) {
                             j->barreiras[b].vida--; 
                             j->linha[i].naves[k].bala.ativa = 0; 
+                            
                             colidiu = 1; 
                             break;
                         }
@@ -748,7 +759,9 @@ int ColisaoBalas(Jogo *j) {
                     // Verifica colisão da bala da nave com o herói
                     if (j->linha[i].naves[k].bala.ativa && CheckCollisionRecs(j->heroi.pos, j->linha[i].naves[k].bala.pos)) {
                         j->heroi.vida--; 
+                        j->statusTelaVermelha = 1;
                         j->linha[i].naves[k].bala.ativa = 0; 
+                        PlaySound(j->heroi.danoNave);
                         colidiu = 1;
                     }
                 }
@@ -766,7 +779,6 @@ int ColisaoBalas(Jogo *j) {
             }
         }
     }
-
     return colidiu;
 }
 
@@ -818,6 +830,8 @@ void Pontuacao(Jogo *j,int linha){
     }   
 }
 
+
+
 void VerificaVidaHeroi(Jogo *j){
     if(j->heroi.vida == 0){
         j->statusPlacar=1;
@@ -825,5 +839,21 @@ void VerificaVidaHeroi(Jogo *j){
             AtualizaPlacar(j);
         }
         j->status = 2;
+    }
+}
+
+void EfeitoVermelho(Jogo *j){
+    if (j->statusTelaVermelha) {
+        if (j->tempoTelaVermelha == 0) {
+            j->tempoTelaVermelha = GetTime();
+        }
+
+        double tempoDecorrido = GetTime() - j->tempoTelaVermelha;
+        if (tempoDecorrido < 0.8) {
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RED, 0.5f));
+        } else {
+            j->tempoTelaVermelha = 0;
+            j->statusTelaVermelha = 0;
+        }
     }
 }
