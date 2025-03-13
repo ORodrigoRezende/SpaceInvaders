@@ -1,5 +1,5 @@
-Rodrigo,100
-Rodrigo,960
-Rodrigo,40
-Rodrigo,30
-Rodrigo,20
+Rodrigo,2730
+Rodrigo,2100
+Rodrigo,1650
+ROdrigo,130
+Rodrigoda ,60

@@ -35,7 +35,7 @@ typedef struct Nave{
     Rectangle pos;
     Color color;
     Bala bala;
-    int velocidade;
+    float velocidade;
     int status;
     Vector2 frame;
     float tempoUltimaTroca;
@@ -173,6 +173,7 @@ int main(){
     InitWindow(jogo.larguraJanela, jogo.alturaJanela, "Space Invaders");
     SetTargetFPS(60);
     srand(time(NULL));
+    jogo.player[0] = '\0';
     jogo.status = 0;
     jogo.statusPlacar=0;
     CarregaImagens(&jogo);
@@ -211,7 +212,7 @@ int main(){
 
 void AtualizaNivel(Jogo *j){
     if (VerificaNaves(j)==1){
-        j->nivel++;
+        j->nivel+=0.5;
         for (int i = 0; i < NUM_LINHA; i++) { //Cria NAVES
             for (int k = 0; k < NUM_NAVES_LINHA; k++){
                 j->linha[i].naves[k].pos = (Rectangle) {OFFSET_X + k * 45, i*45 + 47, STD_SIZE_X, STD_SIZE_Y}; // Espaçadas horizontalmente
@@ -279,7 +280,7 @@ void AtualizaStatusJogo(Jogo *j) { //Reinicia o Jogo
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
     j->pontuacao = 0;
-    j->nivel = 1;
+    j->nivel = 0.5;
     j->statusTelaVermelha=0;
     j->tempoTelaVermelha = 0;
     
@@ -329,7 +330,7 @@ void IniciaCoracao(Jogo *j){
 void IniciaHeroi(Jogo *j){
     j->heroi.pos = (Rectangle) {LARGURA_JANELA/2 - STD_SIZE_X/2, ALTURA_JANELA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     j->heroi.color = BLUE;
-    j->heroi.velocidade = 3;
+    j->heroi.velocidade = 5;
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
     j->heroi.bala.velocidade = 6;
@@ -862,7 +863,7 @@ void VerificaVidaHeroi(Jogo *j){
     }
 }
 
-void EfeitoVermelho(Jogo *j){
+void EfeitoVermelho(Jogo *j) {
     if (j->statusTelaVermelha) {
         if (j->tempoTelaVermelha == 0) {
             j->tempoTelaVermelha = GetTime();
