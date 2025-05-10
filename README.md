@@ -1,6 +1,6 @@
 # 👾 Space Invaders – Projeto de Algoritmos
 
-![Screenshot do Jogo](./screenshots/gameplay1.png)
+![Screenshot do Jogo](/screeenshots/gameplay1.png)
 
 ## 🎮 Sobre o Projeto
 
@@ -45,8 +45,8 @@ Recomendado rodar no **Linux**.
 
 ## 🖼️ Imagens do Jogo
 
-![HOME](./screenshots/gameplay2.png)  
-![Gameplay](./screenshots/gameplay1.png)
+![HOME](/screeenshots/gameplay2.png)  
+![Gameplay](/screeenshots/gameplay1.png)
 
 ## 📄 Licença
 
